@@ -26,7 +26,20 @@ const COLORS = { primary: 0x5865F2, success: 0x57F287, error: 0xED4245, warning:
 function defaultData() {
   return {
     config: {
-      welcome: { enabled: false, channelId: null, message: 'Bienvenue {user} sur **{server}** ! Membre #{count}.', dmEnabled: false, dmMessage: 'Bienvenue sur {server} !', autoRoleId: null },
+      welcome: {
+        enabled: false, channelId: null, dmEnabled: false, dmMessage: 'Bienvenue sur {server} !', autoRoleId: null,
+        title: '👋 Bienvenue !',
+        description: 'Salut {user}, et bienvenue sur **{server}** !',
+        imageUrl: null,
+        footer: '{server} • Membre #{count}',
+        steps: [
+          { title: '1. Lis le règlement', text: 'Consulte le règlement du serveur.' },
+          { title: '2. Choisis tes rôles', text: 'Accède aux salons en choisissant tes rôles.' },
+          { title: '3. Présente-toi', text: 'Fais-toi des amis dans la communauté !' }
+        ],
+        reminderTitle: '💡 Rappel',
+        reminderText: 'Sois respectueux envers tous les membres et amuse-toi bien !'
+      },
       moderation: {
         logChannelId: null,
         antiSpam: { enabled: false, maxMessages: 5, intervalMs: 5000 },
@@ -88,6 +101,34 @@ async function logAction(guild, title, description, color = COLORS.warning) {
 function xpForLevel(level) { return 5 * (level ** 2) + 50 * level + 100; }
 function levelFromXp(xp) { let l = 0; while (xp >= xpForLevel(l + 1)) l++; return l; }
 
+// Construit l'embed de bienvenue à partir de la config et du membre (ou d'un membre factice pour la preview)
+function fillWelcomeText(str, member) {
+  return str
+    .replace(/{user}/g, `${member}`)
+    .replace(/{server}/g, member.guild.name)
+    .replace(/{count}/g, member.guild.memberCount);
+}
+
+function buildWelcomeEmbed(member, cfg) {
+  const embed = new EmbedBuilder()
+    .setColor(COLORS.primary)
+    .setTitle(cfg.title)
+    .setDescription(fillWelcomeText(cfg.description, member))
+    .setThumbnail(member.user.displayAvatarURL());
+
+  const steps = (cfg.steps || []).filter(s => s.title && s.text);
+  if (steps.length > 0) {
+    embed.addFields(steps.map(s => ({ name: s.title, value: s.text, inline: true })));
+  }
+  if (cfg.reminderText) {
+    embed.addFields({ name: cfg.reminderTitle || '💡 Rappel', value: cfg.reminderText, inline: false });
+  }
+  if (cfg.imageUrl) embed.setImage(cfg.imageUrl);
+  if (cfg.footer) embed.setFooter({ text: fillWelcomeText(cfg.footer, member) });
+  embed.setTimestamp();
+  return embed;
+}
+
 // ============================================================
 // CLIENT
 // ============================================================
@@ -107,6 +148,9 @@ const commands = [
   new SlashCommandBuilder().setName('config').setDescription('Ouvre le panneau de configuration du bot').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName('help').setDescription('Affiche la liste des commandes'),
   new SlashCommandBuilder().setName('ticket-panel').setDescription('Envoie le panneau de création de ticket dans ce salon').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName('welcome-image').setDescription('Définit l\'image/bannière du message de bienvenue').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .addAttachmentOption(o => o.setName('image').setDescription('L\'image à utiliser comme bannière').setRequired(true)),
+  new SlashCommandBuilder().setName('welcome-preview').setDescription('Prévisualise le message de bienvenue actuel').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   new SlashCommandBuilder().setName('ban').setDescription('Bannit un membre').setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addUserOption(o => o.setName('membre').setDescription('Le membre à bannir').setRequired(true))
@@ -187,17 +231,21 @@ function renderConfigModule(mod, data) {
 
   if (mod === 'welcome') {
     const c = cfg.welcome;
-    embed.addFields(
-      { name: 'Salon', value: c.channelId ? `<#${c.channelId}>` : 'Non défini', inline: true },
-      { name: 'Rôle auto', value: c.autoRoleId ? `<@&${c.autoRoleId}>` : 'Non défini', inline: true },
-      { name: 'DM', value: c.dmEnabled ? 'Activé' : 'Désactivé', inline: true }
-    );
+    embed.setDescription('Aperçu en direct : utilise `/welcome-preview` à tout moment pour voir le rendu réel.')
+      .addFields(
+        { name: 'Salon', value: c.channelId ? `<#${c.channelId}>` : 'Non défini', inline: true },
+        { name: 'Rôle auto', value: c.autoRoleId ? `<@&${c.autoRoleId}>` : 'Non défini', inline: true },
+        { name: 'DM', value: c.dmEnabled ? 'Activé' : 'Désactivé', inline: true },
+        { name: 'Image bannière', value: c.imageUrl ? '✅ définie (`/welcome-image` pour changer)' : '❌ aucune — utilise `/welcome-image` pour en ajouter une', inline: false }
+      );
     rows.push(new ActionRowBuilder().addComponents(toggleBtn('cfg_welcome_toggle', c.enabled)));
     rows.push(new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('cfg_welcome_channel').setPlaceholder('Salon de bienvenue').addChannelTypes(ChannelType.GuildText)));
     rows.push(new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('cfg_welcome_autorole').setPlaceholder('Rôle automatique')));
     rows.push(new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId('cfg_welcome_dmtoggle').setLabel(c.dmEnabled ? 'Désactiver DM' : 'Activer DM').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('cfg_welcome_msgmodal').setLabel('✏️ Message').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('cfg_welcome_textmodal').setLabel('✏️ Titre & texte').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('cfg_welcome_stepsmodal').setLabel('✏️ Étapes').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('cfg_welcome_footermodal').setLabel('✏️ Pied de page & rappel').setStyle(ButtonStyle.Secondary)
     ));
   }
 
@@ -277,15 +325,59 @@ async function handleConfigComponent(interaction) {
   if (id === 'cfg_back') return interaction.update(renderConfigHome());
   if (interaction.isStringSelectMenu() && id === 'cfg_module_select') return interaction.update(renderConfigModule(interaction.values[0], data));
 
-  if (interaction.isButton() && id === 'cfg_welcome_msgmodal') {
-    const modal = new ModalBuilder().setCustomId('cfg_welcome_msgmodal_submit').setTitle('Message de bienvenue');
-    modal.addComponents(new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('msg').setLabel('Utilise {user} {server} {count}').setStyle(TextInputStyle.Paragraph).setValue(cfg.welcome.message).setRequired(true)
-    ));
+  if (interaction.isButton() && id === 'cfg_welcome_textmodal') {
+    const modal = new ModalBuilder().setCustomId('cfg_welcome_textmodal_submit').setTitle('Titre & texte de bienvenue');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('title').setLabel('Titre').setStyle(TextInputStyle.Short).setValue(cfg.welcome.title).setRequired(true)),
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('desc').setLabel('Texte — utilise {user} {server} {count}').setStyle(TextInputStyle.Paragraph).setValue(cfg.welcome.description).setRequired(true))
+    );
     return interaction.showModal(modal);
   }
-  if (interaction.isModalSubmit() && id === 'cfg_welcome_msgmodal_submit') {
-    cfg.welcome.message = interaction.fields.getTextInputValue('msg');
+  if (interaction.isModalSubmit() && id === 'cfg_welcome_textmodal_submit') {
+    cfg.welcome.title = interaction.fields.getTextInputValue('title');
+    cfg.welcome.description = interaction.fields.getTextInputValue('desc');
+    saveData(interaction.guildId, data);
+    return interaction.update(renderConfigModule('welcome', data));
+  }
+
+  if (interaction.isButton() && id === 'cfg_welcome_stepsmodal') {
+    const steps = cfg.welcome.steps;
+    const modal = new ModalBuilder().setCustomId('cfg_welcome_stepsmodal_submit').setTitle('Étapes (format : Titre | Texte)');
+    for (let i = 0; i < 3; i++) {
+      const s = steps[i] || { title: '', text: '' };
+      modal.addComponents(new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId(`step${i}`).setLabel(`Étape ${i + 1} (laisser vide = masquée)`).setStyle(TextInputStyle.Short)
+          .setValue(s.title ? `${s.title} | ${s.text}` : '').setRequired(false)
+      ));
+    }
+    return interaction.showModal(modal);
+  }
+  if (interaction.isModalSubmit() && id === 'cfg_welcome_stepsmodal_submit') {
+    const newSteps = [];
+    for (let i = 0; i < 3; i++) {
+      const raw = interaction.fields.getTextInputValue(`step${i}`).trim();
+      if (!raw) { newSteps.push({ title: '', text: '' }); continue; }
+      const [title, ...rest] = raw.split('|');
+      newSteps.push({ title: title.trim(), text: rest.join('|').trim() || 'Détails à venir.' });
+    }
+    cfg.welcome.steps = newSteps;
+    saveData(interaction.guildId, data);
+    return interaction.update(renderConfigModule('welcome', data));
+  }
+
+  if (interaction.isButton() && id === 'cfg_welcome_footermodal') {
+    const modal = new ModalBuilder().setCustomId('cfg_welcome_footermodal_submit').setTitle('Pied de page & rappel');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('footer').setLabel('Pied de page — {server} {count}').setStyle(TextInputStyle.Short).setValue(cfg.welcome.footer || '').setRequired(false)),
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('rtitle').setLabel('Titre du rappel').setStyle(TextInputStyle.Short).setValue(cfg.welcome.reminderTitle || '').setRequired(false)),
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('rtext').setLabel('Texte du rappel (vide = masqué)').setStyle(TextInputStyle.Paragraph).setValue(cfg.welcome.reminderText || '').setRequired(false))
+    );
+    return interaction.showModal(modal);
+  }
+  if (interaction.isModalSubmit() && id === 'cfg_welcome_footermodal_submit') {
+    cfg.welcome.footer = interaction.fields.getTextInputValue('footer');
+    cfg.welcome.reminderTitle = interaction.fields.getTextInputValue('rtitle');
+    cfg.welcome.reminderText = interaction.fields.getTextInputValue('rtext');
     saveData(interaction.guildId, data);
     return interaction.update(renderConfigModule('welcome', data));
   }
@@ -412,6 +504,21 @@ async function executeCommand(interaction) {
   if (name === 'ticket-panel') {
     await deployTicketPanel(interaction.channel);
     return interaction.reply({ content: '✅ Panneau envoyé.', ephemeral: true });
+  }
+
+  if (name === 'welcome-image') {
+    const attachment = interaction.options.getAttachment('image');
+    if (!attachment.contentType || !attachment.contentType.startsWith('image/')) {
+      return interaction.reply({ embeds: [errorEmbed('Le fichier doit être une image (png, jpg, gif, webp...).')], ephemeral: true });
+    }
+    data.config.welcome.imageUrl = attachment.url;
+    saveData(interaction.guildId, data);
+    return interaction.reply({ embeds: [successEmbed('Image de bienvenue mise à jour ! Utilise `/welcome-preview` pour voir le résultat.')], ephemeral: true });
+  }
+
+  if (name === 'welcome-preview') {
+    const wCfg = data.config.welcome;
+    return interaction.reply({ content: '👁️ Aperçu (les infos sont basées sur toi) :', embeds: [buildWelcomeEmbed(interaction.member, wCfg)], ephemeral: true });
   }
 
   if (name === 'help') {
@@ -706,8 +813,7 @@ client.on('guildMemberAdd', async (member) => {
   const wCfg = data.config.welcome;
   if (wCfg.enabled && wCfg.channelId) {
     const channel = member.guild.channels.cache.get(wCfg.channelId);
-    const text = wCfg.message.replace(/{user}/g, `${member}`).replace(/{server}/g, member.guild.name).replace(/{count}/g, member.guild.memberCount);
-    channel?.send({ embeds: [new EmbedBuilder().setColor(COLORS.success).setDescription(text).setThumbnail(member.user.displayAvatarURL())] }).catch(() => {});
+    channel?.send({ content: `${member}`, embeds: [buildWelcomeEmbed(member, wCfg)] }).catch(() => {});
   }
   if (wCfg.dmEnabled) member.send(wCfg.dmMessage.replace(/{server}/g, member.guild.name)).catch(() => {});
   if (wCfg.autoRoleId) member.roles.add(wCfg.autoRoleId).catch(() => {});
