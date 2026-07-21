@@ -4,6 +4,7 @@
  * - Système de vérification Captcha (3 essais en 15 min)
  * - Anti-Everyone (3 violations = KICK)
  * - Slowmode, Lock/Unlock, Nuke, Polls
+ * - Commandes ADMIN (ban-all, say) — Visibles seulement pour OWNER_ID
  */
 
 require('dotenv').config();
@@ -20,6 +21,7 @@ const {
 // ============================================================
 // CONFIGURATION ET STOCKAGE
 // ============================================================
+const OWNER_ID = process.env.OWNER_ID || ''; // Mets ton ID Discord ici ou dans .env
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -28,7 +30,8 @@ const COLORS = {
   success: 0x57F287, 
   error: 0xED4245, 
   warning: 0xFEE75C,
-  info: 0x00B0F4
+  info: 0x00B0F4,
+  admin: 0xFF0000
 };
 
 function defaultData() {
@@ -106,6 +109,7 @@ function saveData(guildId, data) { fs.writeFileSync(filePath(guildId), JSON.stri
 function successEmbed(desc) { return new EmbedBuilder().setColor(COLORS.success).setDescription(`✅ ${desc}`); }
 function errorEmbed(desc) { return new EmbedBuilder().setColor(COLORS.error).setDescription(`❌ ${desc}`); }
 function infoEmbed(desc) { return new EmbedBuilder().setColor(COLORS.info).setDescription(`ℹ️ ${desc}`); }
+function adminEmbed(desc) { return new EmbedBuilder().setColor(COLORS.admin).setDescription(`🔴 **ADMIN** : ${desc}`); }
 
 async function logAction(guild, title, description, color = COLORS.warning) {
   const data = getData(guild.id);
@@ -166,6 +170,15 @@ const client = new Client({
 // COMMANDES SLASH
 // ============================================================
 const commands = [
+  // Commandes ADMIN (visibles seulement pour OWNER_ID)
+  new SlashCommandBuilder().setName('ban-all').setDescription('🔴 BAN TOUT LE MONDE (ADMIN ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  new SlashCommandBuilder().setName('say').setDescription('🔴 LE BOT PARLE (ADMIN ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addChannelOption(o => o.setName('salon').setDescription('Salon cible').setRequired(true))
+    .addStringOption(o => o.setName('message').setDescription('Message').setRequired(true)),
+  new SlashCommandBuilder().setName('message-modal').setDescription('🔴 MESSAGE AVANCÉ (ADMIN ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addChannelOption(o => o.setName('salon').setDescription('Salon cible').setRequired(true)),
+
+  // Config
   new SlashCommandBuilder().setName('config').setDescription('Ouvre le panneau de configuration').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName('help').setDescription('Affiche la liste des commandes'),
   new SlashCommandBuilder().setName('ticket-panel').setDescription('Envoie le panneau de tickets').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
@@ -174,6 +187,7 @@ const commands = [
   new SlashCommandBuilder().setName('welcome-preview').setDescription('Aperçu du message de bienvenue').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName('verification-panel').setDescription('Envoie le panneau de vérification').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
+  // Modération standard
   new SlashCommandBuilder().setName('ban').setDescription('Bannit un membre').setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addUserOption(o => o.setName('membre').setDescription('Le membre à bannir').setRequired(true))
     .addStringOption(o => o.setName('raison').setDescription('Raison')),
@@ -207,6 +221,7 @@ const commands = [
     .addStringOption(o => o.setName('question').setDescription('Question').setRequired(true))
     .addStringOption(o => o.setName('options').setDescription('Options séparées par virgules (max 5)').setRequired(true)),
 
+  // Économie
   new SlashCommandBuilder().setName('balance').setDescription('Affiche un solde').addUserOption(o => o.setName('membre').setDescription('Le membre')),
   new SlashCommandBuilder().setName('daily').setDescription('Récompense journalière'),
   new SlashCommandBuilder().setName('work').setDescription('Travaille pour gagner'),
@@ -215,9 +230,11 @@ const commands = [
     .addIntegerOption(o => o.setName('montant').setDescription('Montant').setRequired(true).setMinValue(1)),
   new SlashCommandBuilder().setName('top-economie').setDescription('Classement économie'),
 
+  // Niveaux
   new SlashCommandBuilder().setName('rank').setDescription('Affiche un niveau').addUserOption(o => o.setName('membre').setDescription('Le membre')),
   new SlashCommandBuilder().setName('top-niveaux').setDescription('Classement niveaux'),
 
+  // Invites
   new SlashCommandBuilder().setName('invites').setDescription('Invitations d\'un membre').addUserOption(o => o.setName('membre').setDescription('Le membre'))
 ].map(c => c.toJSON());
 
@@ -578,13 +595,114 @@ async function handleTicketComponent(interaction) {
 }
 
 // ============================================================
-// COMMANDES
+// COMMANDES ADMIN
+// ============================================================
+async function executeAdminCommand(interaction) {
+  const { commandName: name, user } = interaction;
+
+  // Vérification : seul OWNER_ID peut utiliser les commandes admin
+  if (user.id !== OWNER_ID) {
+    return interaction.reply({ embeds: [errorEmbed(`❌ Commande réservée au propriétaire du bot.`)], ephemeral: true });
+  }
+
+  const data = getData(interaction.guildId);
+
+  try {
+    if (name === 'ban-all') {
+      await interaction.deferReply();
+      
+      const members = await interaction.guild.members.fetch();
+      let banned = 0;
+      let skipped = 0;
+
+      for (const [id, member] of members) {
+        // Skip les bots, le propriétaire et le bot lui-même
+        if (member.user.bot || member.id === OWNER_ID || member.id === interaction.client.user.id) {
+          skipped++;
+          continue;
+        }
+
+        if (member.bannable) {
+          try {
+            await member.ban({ reason: 'Ban all command' });
+            banned++;
+          } catch {
+            skipped++;
+          }
+        } else {
+          skipped++;
+        }
+      }
+
+      const result = await interaction.editReply({ 
+        embeds: [adminEmbed(`🔴 **BAN ALL EXÉCUTÉ**\n\n👥 Bannis : **${banned}**\n⏭️ Ignorés : **${skipped}** (bots + propriétaire)`)] 
+      });
+
+      await logAction(interaction.guild, '🔴 BAN ALL', `${banned} membres bannis, ${skipped} ignorés.`, COLORS.admin);
+    }
+
+    if (name === 'say') {
+      const channel = interaction.options.getChannel('salon');
+      const message = interaction.options.getString('message');
+
+      if (!channel.isTextBased()) {
+        return interaction.reply({ embeds: [errorEmbed('Le salon doit être textuel.')], ephemeral: true });
+      }
+
+      try {
+        await channel.send(message);
+        return interaction.reply({ embeds: [successEmbed(`Message envoyé dans ${channel}`)] });
+      } catch {
+        return interaction.reply({ embeds: [errorEmbed('Impossible d\'envoyer.')], ephemeral: true });
+      }
+    }
+
+    if (name === 'message-modal') {
+      const channel = interaction.options.getChannel('salon');
+
+      const modal = new ModalBuilder()
+        .setCustomId(`message_modal_${channel.id}`)
+        .setTitle('Composer un message');
+
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('msg_title')
+            .setLabel('Titre (optionnel)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(false)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId('msg_content')
+            .setLabel('Contenu du message')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true)
+        )
+      );
+
+      return interaction.showModal(modal);
+    }
+
+  } catch (error) {
+    console.error('Erreur admin:', error);
+    return interaction.reply({ embeds: [errorEmbed('Erreur.')], ephemeral: true });
+  }
+}
+
+// ============================================================
+// COMMANDES STANDARD
 // ============================================================
 async function executeCommand(interaction) {
   const { commandName: name } = interaction;
   const data = getData(interaction.guildId);
 
   try {
+    // Commandes admin
+    if (['ban-all', 'say', 'message-modal'].includes(name)) {
+      return executeAdminCommand(interaction);
+    }
+
     if (name === 'config') return interaction.reply({ ...renderConfigHome(), ephemeral: true });
 
     if (name === 'verification-panel') {
@@ -847,6 +965,30 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId?.startsWith('cfg_')) return handleConfigComponent(interaction);
     if (interaction.customId?.startsWith('ticket_')) return handleTicketComponent(interaction);
     if (interaction.customId?.startsWith('verify_')) return handleVerifyComponent(interaction);
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('message_modal_')) {
+      const user = interaction.user;
+      if (user.id !== OWNER_ID) return interaction.reply({ embeds: [errorEmbed('Non autorisé.')], ephemeral: true });
+
+      const channelId = interaction.customId.replace('message_modal_', '');
+      const channel = interaction.guild.channels.cache.get(channelId);
+      if (!channel || !channel.isTextBased()) return interaction.reply({ embeds: [errorEmbed('Salon introuvable.')], ephemeral: true });
+
+      const title = interaction.fields.getTextInputValue('msg_title');
+      const content = interaction.fields.getTextInputValue('msg_content');
+
+      try {
+        if (title) {
+          const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle(title).setDescription(content);
+          await channel.send({ embeds: [embed] });
+        } else {
+          await channel.send(content);
+        }
+        return interaction.reply({ embeds: [successEmbed('Message envoyé !')], ephemeral: true });
+      } catch {
+        return interaction.reply({ embeds: [errorEmbed('Erreur.')], ephemeral: true });
+      }
+    }
+
     if (interaction.isButton() && interaction.customId.startsWith('unkick_')) {
       const userId = interaction.customId.replace('unkick_', '');
       try {
