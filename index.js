@@ -21,7 +21,8 @@ const {
 // ============================================================
 // CONFIGURATION ET STOCKAGE
 // ============================================================
-const OWNER_ID = process.env.OWNER_ID || ''; // Mets ton ID Discord ici ou dans .env
+const OWNER_ID = (process.env.OWNER_ID || '').trim(); // Mets ton ID Discord dans la variable Railway OWNER_ID
+function isOwner(userId) { return OWNER_ID.length > 0 && userId === OWNER_ID; }
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -177,6 +178,8 @@ const commands = [
     .addStringOption(o => o.setName('message').setDescription('Message').setRequired(true)),
   new SlashCommandBuilder().setName('message-modal').setDescription('🔴 MESSAGE AVANCÉ (ADMIN ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption(o => o.setName('salon').setDescription('Salon cible').setRequired(true)),
+
+  new SlashCommandBuilder().setName('owner-check').setDescription('Vérifie si tu es reconnu comme propriétaire du bot'),
 
   // Config
   new SlashCommandBuilder().setName('config').setDescription('Ouvre le panneau de configuration').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
@@ -601,7 +604,7 @@ async function executeAdminCommand(interaction) {
   const { commandName: name, user } = interaction;
 
   // Vérification : seul OWNER_ID peut utiliser les commandes admin
-  if (user.id !== OWNER_ID) {
+  if (!isOwner(user.id)) {
     return interaction.reply({ embeds: [errorEmbed(`❌ Commande réservée au propriétaire du bot.`)], ephemeral: true });
   }
 
@@ -701,6 +704,17 @@ async function executeCommand(interaction) {
     // Commandes admin
     if (['ban-all', 'say', 'message-modal'].includes(name)) {
       return executeAdminCommand(interaction);
+    }
+
+    if (name === 'owner-check') {
+      const configured = OWNER_ID ? `\`${OWNER_ID}\`` : '❌ non configurée (la variable OWNER_ID est vide sur Railway)';
+      const match = isOwner(interaction.user.id);
+      return interaction.reply({
+        embeds: [new EmbedBuilder().setColor(match ? COLORS.success : COLORS.error).setDescription(
+          `**Ton ID Discord :** \`${interaction.user.id}\`\n**OWNER_ID configurée sur Railway :** ${configured}\n**Reconnu comme propriétaire :** ${match ? '✅ Oui' : '❌ Non'}`
+        )],
+        ephemeral: true
+      });
     }
 
     if (name === 'config') return interaction.reply({ ...renderConfigHome(), ephemeral: true });
@@ -967,7 +981,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId?.startsWith('verify_')) return handleVerifyComponent(interaction);
     if (interaction.isModalSubmit() && interaction.customId.startsWith('message_modal_')) {
       const user = interaction.user;
-      if (user.id !== OWNER_ID) return interaction.reply({ embeds: [errorEmbed('Non autorisé.')], ephemeral: true });
+      if (!isOwner(user.id)) return interaction.reply({ embeds: [errorEmbed('Non autorisé.')], ephemeral: true });
 
       const channelId = interaction.customId.replace('message_modal_', '');
       const channel = interaction.guild.channels.cache.get(channelId);
