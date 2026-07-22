@@ -329,7 +329,27 @@ const commands = [
   new SlashCommandBuilder().setName('top-niveaux').setDescription('Classement niveaux'),
 
   // Invites
-  new SlashCommandBuilder().setName('invites').setDescription('Invitations d\'un membre').addUserOption(o => o.setName('membre').setDescription('Le membre'))
+  new SlashCommandBuilder().setName('invites').setDescription('Invitations d\'un membre').addUserOption(o => o.setName('membre').setDescription('Le membre')),
+
+  // Infos
+  new SlashCommandBuilder().setName('userinfo').setDescription('Affiche les infos d\'un membre').addUserOption(o => o.setName('membre').setDescription('Le membre (toi par défaut)')),
+  new SlashCommandBuilder().setName('serverinfo').setDescription('Affiche les infos du serveur'),
+  new SlashCommandBuilder().setName('avatar').setDescription('Affiche l\'avatar d\'un membre').addUserOption(o => o.setName('membre').setDescription('Le membre (toi par défaut)')),
+
+  // Rôles
+  new SlashCommandBuilder().setName('giverole').setDescription('Ajoute un rôle à un membre').setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .addUserOption(o => o.setName('membre').setDescription('Le membre').setRequired(true))
+    .addRoleOption(o => o.setName('role').setDescription('Le rôle à ajouter').setRequired(true)),
+  new SlashCommandBuilder().setName('removerole').setDescription('Retire un rôle à un membre').setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .addUserOption(o => o.setName('membre').setDescription('Le membre').setRequired(true))
+    .addRoleOption(o => o.setName('role').setDescription('Le rôle à retirer').setRequired(true)),
+
+  // Embed & suggestions
+  new SlashCommandBuilder().setName('embed').setDescription('Crée un message stylé (embed) sans coder').setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+    .addChannelOption(o => o.setName('salon').setDescription('Salon où envoyer (par défaut ce salon)')),
+  new SlashCommandBuilder().setName('suggestion').setDescription('Propose une suggestion avec vote 👍/👎')
+    .addStringOption(o => o.setName('texte').setDescription('Ta suggestion').setRequired(true))
+    .addChannelOption(o => o.setName('salon').setDescription('Salon où poster (par défaut ce salon)')),
 ].map(c => c.toJSON());
 
 async function deployCommandsGlobal() {
@@ -881,7 +901,9 @@ async function executeCommand(interaction) {
       const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle('📖 Commandes').addFields(
         { name: '⚙️ Config', value: '`/config` `/verification-panel` `/ticket-panel`', inline: false },
         { name: '🛡️ Modération', value: '`/ban` `/kick` `/mute` `/warn` `/clear` `/lock` `/unlock` `/slowmode` `/nuke`', inline: false },
-        { name: '📋 Utils', value: '`/poll` `/giveaway-create` `/giveaway-end` `/giveaway-reroll`', inline: false },
+        { name: '📋 Utils', value: '`/poll` `/giveaway-create` `/giveaway-end` `/giveaway-reroll` `/embed` `/suggestion`', inline: false },
+        { name: 'ℹ️ Infos', value: '`/userinfo` `/serverinfo` `/avatar`', inline: false },
+        { name: '🎭 Rôles', value: '`/giverole` `/removerole`', inline: false },
         { name: '💰 Économie', value: '`/balance` `/daily` `/work` `/pay` `/top-economie`', inline: false },
         { name: '📈 Niveaux', value: '`/rank` `/top-niveaux`', inline: false }
       );
@@ -1083,6 +1105,95 @@ async function executeCommand(interaction) {
       return interaction.reply({ embeds: [new EmbedBuilder().setColor(COLORS.primary).setTitle('🏆 Top').setDescription(lines.join('\n'))] });
     }
 
+    if (name === 'userinfo') {
+      const user = interaction.options.getUser('membre') || interaction.user;
+      const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+      const roles = member ? member.roles.cache.filter(r => r.id !== interaction.guild.id).sort((a, b) => b.position - a.position).map(r => `<@&${r.id}>`).slice(0, 15) : [];
+      const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle(`Infos de ${user.tag}`).setThumbnail(user.displayAvatarURL({ size: 256 }))
+        .addFields(
+          { name: 'ID', value: user.id, inline: true },
+          { name: 'Compte créé', value: `<t:${Math.floor(user.createdTimestamp / 1000)}:D>`, inline: true },
+          { name: 'A rejoint le', value: member ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:D>` : 'Inconnu', inline: true },
+          { name: `Rôles (${roles.length})`, value: roles.length ? roles.join(' ') : 'Aucun', inline: false }
+        );
+      return interaction.reply({ embeds: [embed] });
+    }
+
+    if (name === 'serverinfo') {
+      const guild = interaction.guild;
+      const owner = await guild.fetchOwner().catch(() => null);
+      const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle(guild.name).setThumbnail(guild.iconURL({ size: 256 }))
+        .addFields(
+          { name: 'Propriétaire', value: owner ? `${owner.user.tag}` : 'Inconnu', inline: true },
+          { name: 'Membres', value: `${guild.memberCount}`, inline: true },
+          { name: 'Créé le', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:D>`, inline: true },
+          { name: 'Salons', value: `${guild.channels.cache.size}`, inline: true },
+          { name: 'Rôles', value: `${guild.roles.cache.size}`, inline: true },
+          { name: 'Boosts', value: `${guild.premiumSubscriptionCount || 0}`, inline: true }
+        );
+      return interaction.reply({ embeds: [embed] });
+    }
+
+    if (name === 'avatar') {
+      const user = interaction.options.getUser('membre') || interaction.user;
+      const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle(`Avatar de ${user.tag}`).setImage(user.displayAvatarURL({ size: 512 }));
+      return interaction.reply({ embeds: [embed] });
+    }
+
+    if (name === 'giverole') {
+      const user = interaction.options.getUser('membre');
+      const role = interaction.options.getRole('role');
+      const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+      if (!member) return interaction.reply({ embeds: [errorEmbed('Membre introuvable.')], ephemeral: true });
+      if (member.roles.cache.has(role.id)) return interaction.reply({ embeds: [errorEmbed(`${user.tag} a déjà ce rôle.`)], ephemeral: true });
+      try {
+        await member.roles.add(role);
+        return interaction.reply({ embeds: [successEmbed(`Rôle ${role} ajouté à ${user.tag}.`)] });
+      } catch {
+        return interaction.reply({ embeds: [errorEmbed('Impossible d\'ajouter ce rôle (position du rôle trop haute pour le bot ?).')], ephemeral: true });
+      }
+    }
+
+    if (name === 'removerole') {
+      const user = interaction.options.getUser('membre');
+      const role = interaction.options.getRole('role');
+      const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+      if (!member) return interaction.reply({ embeds: [errorEmbed('Membre introuvable.')], ephemeral: true });
+      if (!member.roles.cache.has(role.id)) return interaction.reply({ embeds: [errorEmbed(`${user.tag} n'a pas ce rôle.`)], ephemeral: true });
+      try {
+        await member.roles.remove(role);
+        return interaction.reply({ embeds: [successEmbed(`Rôle ${role} retiré à ${user.tag}.`)] });
+      } catch {
+        return interaction.reply({ embeds: [errorEmbed('Impossible de retirer ce rôle (position du rôle trop haute pour le bot ?).')], ephemeral: true });
+      }
+    }
+
+    if (name === 'embed') {
+      const channel = interaction.options.getChannel('salon') || interaction.channel;
+      if (!channel.isTextBased()) return interaction.reply({ embeds: [errorEmbed('Le salon doit être textuel.')], ephemeral: true });
+      const modal = new ModalBuilder().setCustomId(`embed_modal_${channel.id}`).setTitle('Créer un embed');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('titre').setLabel('Titre (optionnel)').setStyle(TextInputStyle.Short).setRequired(false)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('description').setLabel('Description').setStyle(TextInputStyle.Paragraph).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('couleur').setLabel('Couleur hex (ex: 5865F2, optionnel)').setStyle(TextInputStyle.Short).setRequired(false)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('image').setLabel('URL image (optionnel)').setStyle(TextInputStyle.Short).setRequired(false)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('footer').setLabel('Pied de page (optionnel)').setStyle(TextInputStyle.Short).setRequired(false))
+      );
+      return interaction.showModal(modal);
+    }
+
+    if (name === 'suggestion') {
+      const text = interaction.options.getString('texte');
+      const channel = interaction.options.getChannel('salon') || interaction.channel;
+      if (!channel.isTextBased()) return interaction.reply({ embeds: [errorEmbed('Le salon doit être textuel.')], ephemeral: true });
+      const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle('💡 Nouvelle suggestion').setDescription(text)
+        .setFooter({ text: `Proposé par ${interaction.user.tag}` }).setThumbnail(interaction.user.displayAvatarURL());
+      const msg = await channel.send({ embeds: [embed] });
+      await msg.react('👍').catch(() => {});
+      await msg.react('👎').catch(() => {});
+      return interaction.reply({ embeds: [successEmbed(`Suggestion envoyée dans ${channel} !`)], ephemeral: true });
+    }
+
     if (name === 'invites') {
       if (!data.config.invites.enabled) return interaction.reply({ embeds: [errorEmbed('Désactivé.')], ephemeral: true });
       const user = interaction.options.getUser('membre') || interaction.user;
@@ -1125,6 +1236,34 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId?.startsWith('cfg_')) return handleConfigComponent(interaction);
     if (interaction.customId?.startsWith('ticket_')) return handleTicketComponent(interaction);
     if (interaction.customId?.startsWith('verify_')) return handleVerifyComponent(interaction);
+    if (interaction.isModalSubmit() && interaction.customId.startsWith('embed_modal_')) {
+      const channelId = interaction.customId.replace('embed_modal_', '');
+      const channel = interaction.guild.channels.cache.get(channelId);
+      if (!channel || !channel.isTextBased()) return interaction.reply({ embeds: [errorEmbed('Salon introuvable.')], ephemeral: true });
+
+      const titre = interaction.fields.getTextInputValue('titre');
+      const description = interaction.fields.getTextInputValue('description');
+      const couleurRaw = interaction.fields.getTextInputValue('couleur');
+      const image = interaction.fields.getTextInputValue('image');
+      const footer = interaction.fields.getTextInputValue('footer');
+
+      const embed = new EmbedBuilder().setColor(COLORS.primary).setDescription(description);
+      if (titre) embed.setTitle(titre);
+      if (couleurRaw) {
+        const hex = couleurRaw.trim().replace('#', '');
+        if (/^[0-9A-Fa-f]{6}$/.test(hex)) embed.setColor(parseInt(hex, 16));
+      }
+      if (image) embed.setImage(image);
+      if (footer) embed.setFooter({ text: footer });
+
+      try {
+        await channel.send({ embeds: [embed] });
+        return interaction.reply({ embeds: [successEmbed(`Embed envoyé dans ${channel}`)], ephemeral: true });
+      } catch {
+        return interaction.reply({ embeds: [errorEmbed('Erreur lors de l\'envoi (vérifie l\'URL de l\'image).')], ephemeral: true });
+      }
+    }
+
     if (interaction.isModalSubmit() && interaction.customId.startsWith('message_modal_')) {
       const user = interaction.user;
       if (!isOwner(user.id)) return interaction.reply({ embeds: [errorEmbed('Non autorisé.')], ephemeral: true });
