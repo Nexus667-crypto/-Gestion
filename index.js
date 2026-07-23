@@ -35,6 +35,10 @@ const COLORS = {
   admin: 0xFF0000
 };
 
+// Change cette valeur à chaque mise à jour envoyée avec /update-announce.
+// Retire "Bêta " quand le bot sortira officiellement de bêta.
+const BOT_VERSION = 'Bêta V1.1';
+
 function defaultData() {
   return {
     config: {
@@ -68,7 +72,23 @@ function defaultData() {
         attempts: 3,
         timeoutMs: 900000
       },
-      tickets: { enabled: false, categoryId: null, logChannelId: null, supportRoleId: null, counter: 0 },
+      tickets: {
+        enabled: false, categoryId: null, supportRoleId: null, counter: 0,
+        mode: 'single', // 'single' = un bouton + sujet libre, 'categories' = menu de catégories préparées
+        panelTitle: '🎫 Support',
+        panelDescription: 'Clique sur le bouton ci-dessous pour ouvrir un ticket avec l\'équipe.',
+        panelButtonLabel: 'Créer un ticket',
+        ticketTitle: 'Ticket #{number}',
+        ticketDescription: 'Bienvenue {user} ! Décris ta demande, l\'équipe {role} va te répondre.\n**Sujet :** {subject}',
+        categories: [
+          { emoji: '🛠️', label: 'Support' },
+          { emoji: '🚨', label: 'Signalement' },
+          { emoji: '🤝', label: 'Partenariat' },
+          { emoji: '', label: '' },
+          { emoji: '', label: '' }
+        ]
+      },
+      updates: { channelId: null },
       economy: { enabled: false, dailyAmount: 200, workMin: 50, workMax: 250, currencyName: 'pièces' },
       leveling: { enabled: false, xpPerMessage: 15, cooldownMs: 60000, levelUpChannelId: null, levelUpMessage: '{user} passe niveau **{level}** !' },
       tempVoice: { enabled: false, hubChannelId: null, categoryId: null },
@@ -134,6 +154,14 @@ function fillWelcomeText(str, member) {
     .replace(/{user}/g, `${member}`)
     .replace(/{server}/g, member.guild.name)
     .replace(/{count}/g, member.guild.memberCount);
+}
+
+function fillTicketText(str, { user, roleId, number, subject }) {
+  return str
+    .replace(/{user}/g, `${user}`)
+    .replace(/{role}/g, roleId ? `<@&${roleId}>` : 'support')
+    .replace(/{number}/g, `${number}`)
+    .replace(/{subject}/g, subject || 'Non précisé');
 }
 
 function buildWelcomeEmbed(member, cfg) {
@@ -271,6 +299,7 @@ const commands = [
     .addStringOption(o => o.setName('message_id').setDescription('ID du message du giveaway').setRequired(true)),
 
   new SlashCommandBuilder().setName('owner-check').setDescription('Vérifie si tu es reconnu comme propriétaire du bot'),
+  new SlashCommandBuilder().setName('update-announce').setDescription('Publie une annonce de mise à jour du bot').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   // Config
   new SlashCommandBuilder().setName('config').setDescription('Ouvre le panneau de configuration').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
@@ -352,10 +381,12 @@ const commands = [
     .addChannelOption(o => o.setName('salon').setDescription('Salon où poster (par défaut ce salon)')),
 ].map(c => c.toJSON());
 
-async function deployCommandsGlobal() {
+// On n'utilise QUE des commandes par-serveur (pas de commandes globales) pour éviter les doublons
+// dans la liste "/" : Discord n'unifie pas une commande globale et une commande de serveur portant
+// le même nom, il affiche bien les deux séparément si les deux existent.
+async function wipeGlobalCommandsOnce() {
   const rest = new REST().setToken(process.env.DISCORD_TOKEN);
-  await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-  console.log(`✅ ${commands.length} commande(s) déployée(s) globalement (visibles sur tous les serveurs).`);
+  await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: [] });
 }
 
 async function deployCommandsToGuild(guildId) {
@@ -374,7 +405,8 @@ const MODULES = {
   leveling: '📈 Niveaux (XP)',
   tempvoice: '🔊 Vocaux temporaires',
   invites: '📨 Invitations',
-  verification: '🔐 Vérification'
+  verification: '🔐 Vérification',
+  updates: '🚀 Mises à jour'
 };
 
 function moduleSelectRow(current) {
@@ -459,17 +491,46 @@ function renderConfigModule(mod, data) {
 
   if (mod === 'tickets') {
     const c = cfg.tickets;
-    embed.addFields(
-      { name: 'Catégorie', value: c.categoryId ? `<#${c.categoryId}>` : 'Non défini', inline: true },
-      { name: 'Rôle support', value: c.supportRoleId ? `<@&${c.supportRoleId}>` : 'Non défini', inline: true }
-    );
-    rows.push(new ActionRowBuilder().addComponents(toggleBtn('cfg_ticket_toggle', c.enabled)));
-    rows.push(new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('cfg_ticket_category').setPlaceholder('Catégorie').addChannelTypes(ChannelType.GuildCategory)));
+    embed.setDescription(`Mode actuel : **${c.mode === 'categories' ? '📋 Menu de catégories préparées' : '🔘 Bouton unique + sujet libre'}**`)
+      .addFields(
+        { name: 'Catégorie (salon)', value: c.categoryId ? `<#${c.categoryId}>` : 'Non défini', inline: true },
+        { name: 'Rôle support', value: c.supportRoleId ? `<@&${c.supportRoleId}>` : 'Non défini', inline: true }
+      );
+    rows.push(new ActionRowBuilder().addComponents(
+      toggleBtn('cfg_ticket_toggle', c.enabled),
+      new ButtonBuilder().setCustomId('cfg_ticket_modetoggle').setLabel(c.mode === 'categories' ? 'Passer en bouton unique' : 'Passer en menu de catégories').setStyle(ButtonStyle.Secondary)
+    ));
+    rows.push(new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('cfg_ticket_category').setPlaceholder('Catégorie des salons de ticket').addChannelTypes(ChannelType.GuildCategory)));
     rows.push(new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('cfg_ticket_role').setPlaceholder('Rôle support')));
+    rows.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_customize').setLabel('✏️ Personnaliser (textes & catégories)').setStyle(ButtonStyle.Secondary)));
+  }
+
+  if (mod === 'updates') {
+    const c = cfg.updates;
+    embed.setDescription(`Version actuelle : **${BOT_VERSION}**\nUtilise \`/update-announce\` pour publier une annonce de mise à jour.`)
+      .addFields({ name: 'Salon d\'annonces', value: c.channelId ? `<#${c.channelId}>` : 'Non défini', inline: true });
+    rows.push(new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('cfg_updates_channel').setPlaceholder('Salon des annonces de mise à jour').addChannelTypes(ChannelType.GuildText)));
   }
 
   rows.push(backRow());
   return { embeds: [embed], components: rows.slice(0, 5) };
+}
+
+function renderTicketCustomize(data) {
+  const c = data.config.tickets;
+  const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle('✏️ Personnalisation des tickets')
+    .addFields(
+      { name: 'Panneau', value: `**${c.panelTitle}**\n${c.panelDescription}`, inline: false },
+      { name: 'Message du ticket', value: `**${c.ticketTitle}**\n${c.ticketDescription}`, inline: false },
+      { name: 'Catégories (mode menu)', value: c.categories.filter(x => x.label).map(x => `${x.emoji} ${x.label}`).join(' • ') || 'Aucune', inline: false }
+    );
+  const rows = [
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_panelmodal').setLabel('✏️ Message du panneau').setStyle(ButtonStyle.Secondary)),
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_msgmodal').setLabel('✏️ Message du ticket').setStyle(ButtonStyle.Secondary)),
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_catmodal').setLabel('✏️ Catégories (mode menu)').setStyle(ButtonStyle.Secondary)),
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_customize_back').setLabel('⬅️ Retour aux tickets').setStyle(ButtonStyle.Secondary))
+  ];
+  return { embeds: [embed], components: rows };
 }
 
 async function handleConfigComponent(interaction) {
@@ -488,7 +549,8 @@ async function handleConfigComponent(interaction) {
       cfg_verif_channel: ['verification', () => cfg.verification.channelId = val],
       cfg_ticket_category: ['tickets', () => cfg.tickets.categoryId = val],
       cfg_lvl_channel: ['leveling', () => cfg.leveling.levelUpChannelId = val],
-      cfg_inv_channel: ['invites', () => cfg.invites.logChannelId = val]
+      cfg_inv_channel: ['invites', () => cfg.invites.logChannelId = val],
+      cfg_updates_channel: ['updates', () => cfg.updates.channelId = val]
     };
     if (setters[id]) {
       const [modName, fn] = setters[id];
@@ -502,6 +564,79 @@ async function handleConfigComponent(interaction) {
     if (id === 'cfg_welcome_autorole') { cfg.welcome.autoRoleId = val; saveData(interaction.guildId, data); return interaction.update(renderConfigModule('welcome', data)); }
     if (id === 'cfg_verif_role') { cfg.verification.roleId = val; saveData(interaction.guildId, data); return interaction.update(renderConfigModule('verification', data)); }
     if (id === 'cfg_ticket_role') { cfg.tickets.supportRoleId = val; saveData(interaction.guildId, data); return interaction.update(renderConfigModule('tickets', data)); }
+  }
+
+  if (interaction.isButton() && id === 'cfg_ticket_modetoggle') {
+    cfg.tickets.mode = cfg.tickets.mode === 'categories' ? 'single' : 'categories';
+    saveData(interaction.guildId, data);
+    return interaction.update(renderConfigModule('tickets', data));
+  }
+
+  if (interaction.isButton() && id === 'cfg_ticket_customize') {
+    return interaction.update(renderTicketCustomize(data));
+  }
+  if (interaction.isButton() && id === 'cfg_ticket_customize_back') {
+    return interaction.update(renderConfigModule('tickets', data));
+  }
+
+  if (interaction.isButton() && id === 'cfg_ticket_panelmodal') {
+    const c = cfg.tickets;
+    const modal = new ModalBuilder().setCustomId('cfg_ticket_panelmodal_submit').setTitle('Message du panneau');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('title').setLabel('Titre').setStyle(TextInputStyle.Short).setValue(c.panelTitle).setRequired(true)),
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('desc').setLabel('Description').setStyle(TextInputStyle.Paragraph).setValue(c.panelDescription).setRequired(true)),
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('btn').setLabel('Texte du bouton (mode bouton unique)').setStyle(TextInputStyle.Short).setValue(c.panelButtonLabel).setRequired(true))
+    );
+    return interaction.showModal(modal);
+  }
+  if (interaction.isModalSubmit() && id === 'cfg_ticket_panelmodal_submit') {
+    cfg.tickets.panelTitle = interaction.fields.getTextInputValue('title');
+    cfg.tickets.panelDescription = interaction.fields.getTextInputValue('desc');
+    cfg.tickets.panelButtonLabel = interaction.fields.getTextInputValue('btn');
+    saveData(interaction.guildId, data);
+    return interaction.update(renderTicketCustomize(data));
+  }
+
+  if (interaction.isButton() && id === 'cfg_ticket_msgmodal') {
+    const c = cfg.tickets;
+    const modal = new ModalBuilder().setCustomId('cfg_ticket_msgmodal_submit').setTitle('Message dans le ticket');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('title').setLabel('Titre — {number} {subject}').setStyle(TextInputStyle.Short).setValue(c.ticketTitle).setRequired(true)),
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('desc').setLabel('Texte — {user} {role} {number} {subject}').setStyle(TextInputStyle.Paragraph).setValue(c.ticketDescription).setRequired(true))
+    );
+    return interaction.showModal(modal);
+  }
+  if (interaction.isModalSubmit() && id === 'cfg_ticket_msgmodal_submit') {
+    cfg.tickets.ticketTitle = interaction.fields.getTextInputValue('title');
+    cfg.tickets.ticketDescription = interaction.fields.getTextInputValue('desc');
+    saveData(interaction.guildId, data);
+    return interaction.update(renderTicketCustomize(data));
+  }
+
+  if (interaction.isButton() && id === 'cfg_ticket_catmodal') {
+    const cats = cfg.tickets.categories;
+    const modal = new ModalBuilder().setCustomId('cfg_ticket_catmodal_submit').setTitle('Catégories (format : Emoji | Nom)');
+    for (let i = 0; i < 5; i++) {
+      const c = cats[i] || { emoji: '', label: '' };
+      modal.addComponents(new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId(`cat${i}`).setLabel(`Catégorie ${i + 1} (vide = inutilisée)`).setStyle(TextInputStyle.Short)
+          .setValue(c.label ? `${c.emoji} | ${c.label}` : '').setRequired(false)
+      ));
+    }
+    return interaction.showModal(modal);
+  }
+  if (interaction.isModalSubmit() && id === 'cfg_ticket_catmodal_submit') {
+    const newCats = [];
+    for (let i = 0; i < 5; i++) {
+      const raw = interaction.fields.getTextInputValue(`cat${i}`).trim();
+      if (!raw) { newCats.push({ emoji: '', label: '' }); continue; }
+      const [emoji, ...rest] = raw.split('|');
+      const label = rest.join('|').trim();
+      newCats.push({ emoji: emoji.trim(), label: label || emoji.trim() });
+    }
+    cfg.tickets.categories = newCats;
+    saveData(interaction.guildId, data);
+    return interaction.update(renderTicketCustomize(data));
   }
 
   if (interaction.isButton()) {
@@ -669,44 +804,82 @@ async function checkEveryoneMention(message) {
 // ============================================================
 // TICKETS
 // ============================================================
-async function deployTicketPanel(channel) {
-  const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle('🎫 Support').setDescription('Clique pour ouvrir.');
-  const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_create').setLabel('Créer').setEmoji('📩').setStyle(ButtonStyle.Primary));
+async function deployTicketPanel(channel, data) {
+  const cfg = data.config.tickets;
+  const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle(cfg.panelTitle).setDescription(cfg.panelDescription);
+
+  let row;
+  if (cfg.mode === 'categories') {
+    const activeCats = cfg.categories.filter(c => c.label);
+    const menu = new StringSelectMenuBuilder().setCustomId('ticket_select_category').setPlaceholder('Choisis une catégorie')
+      .addOptions(activeCats.map((c, i) => ({ label: c.label, value: `${i}`, emoji: c.emoji || undefined })));
+    row = new ActionRowBuilder().addComponents(menu);
+  } else {
+    row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_create_single').setLabel(cfg.panelButtonLabel).setEmoji('📩').setStyle(ButtonStyle.Primary));
+  }
+
   await channel.send({ embeds: [embed], components: [row] });
+}
+
+async function createTicketChannel(interaction, data, subject) {
+  const cfg = data.config.tickets;
+  if (!cfg.enabled || !cfg.categoryId) return interaction.reply({ embeds: [errorEmbed('Système de tickets non configuré (`/config`).')], ephemeral: true });
+
+  const existing = interaction.guild.channels.cache.find(c => c.topic === `ticket-owner-${interaction.user.id}` && c.parentId === cfg.categoryId);
+  if (existing) return interaction.reply({ embeds: [errorEmbed(`Tu as déjà un ticket ouvert : <#${existing.id}>`)], ephemeral: true });
+
+  cfg.counter = (cfg.counter || 0) + 1;
+  const overwrites = [
+    { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+    { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+    { id: interaction.client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
+  ];
+  if (cfg.supportRoleId) overwrites.push({ id: cfg.supportRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
+
+  const channel = await interaction.guild.channels.create({
+    name: `ticket-${cfg.counter}`, type: ChannelType.GuildText, parent: cfg.categoryId,
+    topic: `ticket-owner-${interaction.user.id}`, permissionOverwrites: overwrites
+  }).catch(() => null);
+  if (!channel) return interaction.reply({ embeds: [errorEmbed('Impossible de créer le salon (vérifie mes permissions).')], ephemeral: true });
+
+  saveData(interaction.guildId, data);
+
+  const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle(fillTicketText(cfg.ticketTitle, { user: interaction.user, roleId: cfg.supportRoleId, number: cfg.counter, subject }))
+    .setDescription(fillTicketText(cfg.ticketDescription, { user: interaction.user, roleId: cfg.supportRoleId, number: cfg.counter, subject }));
+  const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_close').setLabel('Fermer').setEmoji('🔒').setStyle(ButtonStyle.Danger));
+  await channel.send({ content: `${interaction.user}${cfg.supportRoleId ? ` <@&${cfg.supportRoleId}>` : ''}`, embeds: [embed], components: [row] });
+
+  await logAction(interaction.guild, '🎫 Ticket ouvert', `${interaction.user} a ouvert ${channel} (sujet : ${subject || 'non précisé'})`, COLORS.primary);
+  return interaction.reply({ embeds: [successEmbed(`Ticket créé : ${channel}`)], ephemeral: true });
 }
 
 async function handleTicketComponent(interaction) {
   const data = getData(interaction.guildId);
   const cfg = data.config.tickets;
 
-  if (interaction.customId === 'ticket_create') {
-    if (!cfg.enabled || !cfg.categoryId) return interaction.reply({ embeds: [errorEmbed('Non configuré.')], ephemeral: true });
-
-    const existing = interaction.guild.channels.cache.find(c => c.topic === `ticket-${interaction.user.id}` && c.parentId === cfg.categoryId);
-    if (existing) return interaction.reply({ embeds: [errorEmbed(`Ticket ouvert : <#${existing.id}>`)], ephemeral: true });
-
-    cfg.counter = (cfg.counter || 0) + 1;
-    const overwrites = [
-      { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-      { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-      { id: interaction.client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] }
-    ];
-    if (cfg.supportRoleId) overwrites.push({ id: cfg.supportRoleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] });
-
-    const channel = await interaction.guild.channels.create({ name: `ticket-${cfg.counter}`, type: ChannelType.GuildText, parent: cfg.categoryId, topic: `ticket-${interaction.user.id}`, permissionOverwrites: overwrites }).catch(() => null);
-    if (!channel) return interaction.reply({ embeds: [errorEmbed('Erreur.')], ephemeral: true });
-
-    saveData(interaction.guildId, data);
-
-    const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle(`Ticket #${cfg.counter}`).setDescription(`Bienvenue ${interaction.user}`);
-    const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_close').setLabel('Fermer').setEmoji('🔒').setStyle(ButtonStyle.Danger));
-    await channel.send({ content: `${interaction.user}${cfg.supportRoleId ? ` <@&${cfg.supportRoleId}>` : ''}`, embeds: [embed], components: [row] });
-    return interaction.reply({ embeds: [successEmbed(`Créé : ${channel}`)], ephemeral: true });
+  if (interaction.isButton() && interaction.customId === 'ticket_create_single') {
+    const modal = new ModalBuilder().setCustomId('ticket_modal_single_submit').setTitle('Ouvrir un ticket');
+    modal.addComponents(new ActionRowBuilder().addComponents(
+      new TextInputBuilder().setCustomId('subject').setLabel('Sujet de ta demande').setStyle(TextInputStyle.Short).setRequired(false)
+    ));
+    return interaction.showModal(modal);
   }
 
-  if (interaction.customId === 'ticket_close') {
-    await interaction.reply({ embeds: [successEmbed('Fermeture...')] });
-    setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
+  if (interaction.isModalSubmit() && interaction.customId === 'ticket_modal_single_submit') {
+    const subject = interaction.fields.getTextInputValue('subject') || 'Non précisé';
+    return createTicketChannel(interaction, data, subject);
+  }
+
+  if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select_category') {
+    const idx = parseInt(interaction.values[0]);
+    const category = cfg.categories.filter(c => c.label)[idx];
+    return createTicketChannel(interaction, data, category ? category.label : 'Non précisé');
+  }
+
+  if (interaction.isButton() && interaction.customId === 'ticket_close') {
+    await interaction.reply({ embeds: [successEmbed('Fermeture du ticket dans 5 secondes...')] });
+    await logAction(interaction.guild, '🔒 Ticket fermé', `Salon **${interaction.channel.name}** fermé par ${interaction.user}`, COLORS.warning);
+    setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
   }
 }
 
@@ -860,6 +1033,15 @@ async function executeCommand(interaction) {
       return interaction.reply({ embeds: [successEmbed('Reroll effectué.')], ephemeral: true });
     }
 
+    if (name === 'update-announce') {
+      const modal = new ModalBuilder().setCustomId('update_announce_modal').setTitle(`Annonce — ${BOT_VERSION}`);
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('changelog').setLabel('Description des changements').setStyle(TextInputStyle.Paragraph).setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('gif').setLabel('URL d\'un GIF (optionnel)').setStyle(TextInputStyle.Short).setRequired(false))
+      );
+      return interaction.showModal(modal);
+    }
+
     if (name === 'owner-check') {
       const configured = OWNER_ID ? `\`${OWNER_ID}\`` : '❌ non configurée (la variable OWNER_ID est vide sur Railway)';
       const match = isOwner(interaction.user.id);
@@ -879,7 +1061,7 @@ async function executeCommand(interaction) {
     }
 
     if (name === 'ticket-panel') {
-      await deployTicketPanel(interaction.channel);
+      await deployTicketPanel(interaction.channel, data);
       return interaction.reply({ content: '✅ Panneau envoyé.', ephemeral: true });
     }
 
@@ -899,7 +1081,7 @@ async function executeCommand(interaction) {
 
     if (name === 'help') {
       const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle('📖 Commandes').addFields(
-        { name: '⚙️ Config', value: '`/config` `/verification-panel` `/ticket-panel`', inline: false },
+        { name: '⚙️ Config', value: '`/config` `/verification-panel` `/ticket-panel` `/update-announce`', inline: false },
         { name: '🛡️ Modération', value: '`/ban` `/kick` `/mute` `/warn` `/clear` `/lock` `/unlock` `/slowmode` `/nuke`', inline: false },
         { name: '📋 Utils', value: '`/poll` `/giveaway-create` `/giveaway-end` `/giveaway-reroll` `/embed` `/suggestion`', inline: false },
         { name: 'ℹ️ Infos', value: '`/userinfo` `/serverinfo` `/avatar`', inline: false },
@@ -1216,11 +1398,13 @@ client.once('ready', async () => {
   console.log(`✅ ${client.user.tag}`);
   client.user.setActivity('/help', { type: 3 });
   try {
-    await deployCommandsGlobal();
-    // Déploiement immédiat sur chaque serveur déjà rejoint (les commandes globales peuvent mettre jusqu'à 1h à apparaître partout)
+    // Supprime d'éventuelles anciennes commandes globales enregistrées par erreur (cause des doublons)
+    await wipeGlobalCommandsOnce().catch(() => {});
+    // Déploiement par-serveur uniquement : instantané, sans doublon, et fonctionne sur chaque serveur
     for (const guild of client.guilds.cache.values()) {
       await deployCommandsToGuild(guild.id).catch(() => {});
     }
+    console.log(`✅ Commandes déployées sur ${client.guilds.cache.size} serveur(s).`);
   } catch (e) { console.error('Erreur déploiement commandes:', e); }
   startGiveawayScheduler();
 });
@@ -1236,6 +1420,28 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.customId?.startsWith('cfg_')) return handleConfigComponent(interaction);
     if (interaction.customId?.startsWith('ticket_')) return handleTicketComponent(interaction);
     if (interaction.customId?.startsWith('verify_')) return handleVerifyComponent(interaction);
+    if (interaction.isModalSubmit() && interaction.customId === 'update_announce_modal') {
+      const data = getData(interaction.guildId);
+      const changelog = interaction.fields.getTextInputValue('changelog');
+      const gif = interaction.fields.getTextInputValue('gif');
+      const channelId = data.config.updates.channelId;
+      const channel = channelId ? interaction.guild.channels.cache.get(channelId) : interaction.channel;
+      if (!channel) return interaction.reply({ embeds: [errorEmbed('Salon d\'annonces introuvable. Configure-le dans `/config`.')], ephemeral: true });
+
+      const embed = new EmbedBuilder()
+        .setColor(COLORS.primary)
+        .setTitle(`🚀 Nouvelle mise à jour du bot — ${BOT_VERSION}`)
+        .setDescription(changelog)
+        .setTimestamp();
+      if (gif) embed.setImage(gif);
+      if (BOT_VERSION.toLowerCase().includes('bêta') || BOT_VERSION.toLowerCase().includes('beta')) {
+        embed.setFooter({ text: 'Le bot est toujours en bêta — merci pour ton soutien et tes retours !' });
+      }
+
+      await channel.send({ embeds: [embed] }).catch(() => {});
+      return interaction.reply({ embeds: [successEmbed(`Annonce publiée dans ${channel} !`)], ephemeral: true });
+    }
+
     if (interaction.isModalSubmit() && interaction.customId.startsWith('embed_modal_')) {
       const channelId = interaction.customId.replace('embed_modal_', '');
       const channel = interaction.guild.channels.cache.get(channelId);
