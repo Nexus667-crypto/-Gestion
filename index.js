@@ -37,10 +37,10 @@ const BOT_VERSION = 'Bêta V1.1';
 // SYSTÈME DE NIVEAUX DASHBOARD
 // ============================================================
 const DASHBOARD_LEVELS = {
-  1: { name: 'Membre', color: 0x5865F2, emoji: '' },
-  2: { name: 'Staff', color: 0xFEE75C, emoji: '🛡️' },
-  3: { name: 'Admin', color: 0xED4245, emoji: '' },
-  4: { name: 'Owner', color: 0xFF0000, emoji: '🔥' }
+  1: { name: 'Membre', color: 0x5865F2, emoji: '👤' },
+  2: { name: 'Staff', color: 0xFEE75C, emoji: '️' },
+  3: { name: 'Admin', color: 0xED4245, emoji: '👑' },
+  4: { name: 'Owner', color: 0xFF0000, emoji: '' }
 };
 
 function getUserLevel(guildId, userId) {
@@ -124,7 +124,7 @@ function defaultData() {
         ticketTitle: 'Ticket #{number}',
         ticketDescription: 'Bienvenue {user} ! Décris ta demande, l\'équipe {role} va te répondre.\n**Sujet :** {subject}',
         categories: [
-          { emoji: '🛠️', label: 'Support' },
+          { emoji: '️', label: 'Support' },
           { emoji: '🚨', label: 'Signalement' },
           { emoji: '🤝', label: 'Partenariat' },
           { emoji: '', label: '' },
@@ -172,7 +172,7 @@ function getData(guildId) {
 function saveData(guildId, data) { fs.writeFileSync(filePath(guildId), JSON.stringify(data, null, 2)); }
 
 function successEmbed(desc) { return new EmbedBuilder().setColor(COLORS.success).setDescription(`✅ ${desc}`); }
-function errorEmbed(desc) { return new EmbedBuilder().setColor(COLORS.error).setDescription(`❌ ${desc}`); }
+function errorEmbed(desc) { return new EmbedBuilder().setColor(COLORS.error).setDescription(` ${desc}`); }
 function infoEmbed(desc) { return new EmbedBuilder().setColor(COLORS.info).setDescription(`ℹ️ ${desc}`); }
 function adminEmbed(desc) { return new EmbedBuilder().setColor(COLORS.admin).setDescription(`🔴 **ADMIN** : ${desc}`); }
 
@@ -239,7 +239,7 @@ function parseDuration(str) {
 function randomId() { return Math.random().toString(36).slice(2, 10); }
 
 function buildGiveawayEmbed(prize, winnersCount, endTime, participantCount, ended = false, winners = []) {
-  const embed = new EmbedBuilder().setColor(ended ? COLORS.warning : COLORS.primary).setTitle(ended ? '🎉 GIVEAWAY TERMINÉ 🎉' : '🎉 GIVEAWAY 🎉');
+  const embed = new EmbedBuilder().setColor(ended ? COLORS.warning : COLORS.primary).setTitle(ended ? ' GIVEAWAY TERMINÉ 🎉' : '🎉 GIVEAWAY 🎉');
   if (ended) {
     embed.setDescription(`**Lot :** ${prize}\n**Gagnant(s) :** ${winners.length > 0 ? winners.map(id => `<@${id}>`).join(', ') : 'Aucun participant'}\n**Participants :** ${participantCount}`);
   } else {
@@ -323,20 +323,20 @@ const client = new Client({
 // ============================================================
 const commands = [
   // Commandes ADMIN (visibles seulement pour OWNER_ID)
-  new SlashCommandBuilder().setName('ban-all').setDescription(' BAN TOUT LE MONDE (OWNER ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  new SlashCommandBuilder().setName('ban-all').setDescription('🔴 BAN TOUT LE MONDE (OWNER ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder().setName('say').setDescription('🔴 LE BOT PARLE (OWNER ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption(o => o.setName('salon').setDescription('Salon cible').setRequired(true))
     .addStringOption(o => o.setName('message').setDescription('Message').setRequired(true)),
-  new SlashCommandBuilder().setName('message-modal').setDescription('🔴 MESSAGE AVANCÉ (OWNER ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  new SlashCommandBuilder().setName('message-modal').setDescription(' MESSAGE AVANCÉ (OWNER ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption(o => o.setName('salon').setDescription('Salon cible').setRequired(true)),
 
   // Dashboard & Permissions
-  new SlashCommandBuilder().setName('dashboard').setDescription(' Ouvre le dashboard interactif'),
+  new SlashCommandBuilder().setName('dashboard').setDescription('📊 Ouvre le dashboard interactif'),
   new SlashCommandBuilder().setName('set-level').setDescription('🔥 Définit le niveau dashboard d\'un membre (Admin+)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addUserOption(o => o.setName('membre').setDescription('Le membre').setRequired(true))
     .addIntegerOption(o => o.setName('niveau').setDescription('Niveau 1-4').setRequired(true).setMinValue(1).setMaxValue(4)),
-  new SlashCommandBuilder().setName('remove-level').setDescription('🔥 Retire le niveau dashboard d\'un membre (Admin+)')
+  new SlashCommandBuilder().setName('remove-level').setDescription(' Retire le niveau dashboard d\'un membre (Admin+)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addUserOption(o => o.setName('membre').setDescription('Le membre').setRequired(true)),
   new SlashCommandBuilder().setName('my-level').setDescription('📊 Affiche ton niveau dashboard'),
@@ -429,7 +429,7 @@ const commands = [
   // Embed & suggestions
   new SlashCommandBuilder().setName('embed').setDescription('Crée un message stylé (embed) sans coder').setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
     .addChannelOption(o => o.setName('salon').setDescription('Salon où envoyer (par défaut ce salon)')),
-  new SlashCommandBuilder().setName('suggestion').setDescription('Propose une suggestion avec vote 👍/👎')
+  new SlashCommandBuilder().setName('suggestion').setDescription('Propose une suggestion avec vote 👍/')
     .addStringOption(o => o.setName('texte').setDescription('Ta suggestion').setRequired(true))
     .addChannelOption(o => o.setName('salon').setDescription('Salon où poster (par défaut ce salon)')),
 ].map(c => c.toJSON());
@@ -450,11 +450,11 @@ async function deployCommandsToGuild(guildId) {
 const MODULES = {
   welcome: '👋 Bienvenue & Auto-rôle',
   moderation: '🛡️ Modération & Anti-raid',
-  tickets: '🎫 Tickets',
+  tickets: ' Tickets',
   economy: '💰 Économie',
-  leveling: ' Niveaux (XP)',
-  tempvoice: '🔊 Vocaux temporaires',
-  invites: '📨 Invitations',
+  leveling: '📈 Niveaux (XP)',
+  tempvoice: ' Vocaux temporaires',
+  invites: ' Invitations',
   verification: '🔐 Vérification',
   updates: '🚀 Mises à jour'
 };
@@ -576,7 +576,7 @@ function renderTicketCustomize(data) {
     );
   const rows = [
     new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_panelmodal').setLabel('✏️ Message du panneau').setStyle(ButtonStyle.Secondary)),
-    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_msgmodal').setLabel('✏️ Message du ticket').setStyle(ButtonStyle.Secondary)),
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_msgmodal').setLabel('️ Message du ticket').setStyle(ButtonStyle.Secondary)),
     new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_catmodal').setLabel('✏️ Catégories (mode menu)').setStyle(ButtonStyle.Secondary)),
     new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_customize_back').setLabel('⬅️ Retour aux tickets').setStyle(ButtonStyle.Secondary))
   ];
@@ -828,7 +828,7 @@ async function checkEveryoneMention(message) {
 
         const kickEmbed = new EmbedBuilder()
           .setColor(COLORS.error)
-          .setTitle(' Expulsion')
+          .setTitle('👢 Expulsion')
           .setDescription(`**${message.author.tag}**\n**Raison :** ${cfg.threshold} mentions @everyone/@here en 15 min`);
 
         const unkickBtn = new ButtonBuilder()
@@ -899,7 +899,7 @@ async function createTicketChannel(interaction, data, subject) {
   const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_close').setLabel('Fermer').setEmoji('🔒').setStyle(ButtonStyle.Danger));
   await channel.send({ content: `${interaction.user}${cfg.supportRoleId ? ` <@&${cfg.supportRoleId}>` : ''}`, embeds: [embed], components: [row] });
 
-  await logAction(interaction.guild, '🎫 Ticket ouvert', `${interaction.user} a ouvert ${channel} (sujet : ${subject || 'non précisé'})`, COLORS.primary);
+  await logAction(interaction.guild, ' Ticket ouvert', `${interaction.user} a ouvert ${channel} (sujet : ${subject || 'non précisé'})`, COLORS.primary);
   return interaction.reply({ embeds: [successEmbed(`Ticket créé : ${channel}`)], ephemeral: true });
 }
 
@@ -928,7 +928,7 @@ async function handleTicketComponent(interaction) {
 
   if (interaction.isButton() && interaction.customId === 'ticket_close') {
     await interaction.reply({ embeds: [successEmbed('Fermeture du ticket dans 5 secondes...')] });
-    await logAction(interaction.guild, '🔒 Ticket fermé', `Salon **${interaction.channel.name}** fermé par ${interaction.user}`, COLORS.warning);
+    await logAction(interaction.guild, ' Ticket fermé', `Salon **${interaction.channel.name}** fermé par ${interaction.user}`, COLORS.warning);
     setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
   }
 }
@@ -952,7 +952,7 @@ function getDashboardEmbed(guild, userId, level) {
   
   if (level >= 1) {
     fields.push({
-      name: ' Commandes Disponibles',
+      name: '📋 Commandes Disponibles',
       value: '`/help` `/rank` `/balance` `/daily` `/work` `/invites`',
       inline: false
     });
@@ -976,7 +976,7 @@ function getDashboardEmbed(guild, userId, level) {
   
   if (level >= 4) {
     fields.push({
-      name: '🔥 OWNER ONLY',
+      name: ' OWNER ONLY',
       value: '`/ban-all` `/say` `/message-modal`',
       inline: false
     });
@@ -992,13 +992,13 @@ function getDashboardButtons(level) {
   const row2 = new ActionRowBuilder();
   
   row1.addComponents(
-    new ButtonBuilder().setCustomId('dash_help').setLabel('Aide').setStyle(ButtonStyle.Primary).setEmoji(''),
+    new ButtonBuilder().setCustomId('dash_help').setLabel('Aide').setStyle(ButtonStyle.Primary).setEmoji('📖'),
     new ButtonBuilder().setCustomId('dash_profile').setLabel('Mon Profil').setStyle(ButtonStyle.Secondary).setEmoji('👤')
   );
   
   if (level >= 2) {
     row1.addComponents(
-      new ButtonBuilder().setCustomId('dash_mod').setLabel('Modération').setStyle(ButtonStyle.Success).setEmoji('🛡️')
+      new ButtonBuilder().setCustomId('dash_mod').setLabel('Modération').setStyle(ButtonStyle.Success).setEmoji('️')
     );
   }
   
@@ -1042,7 +1042,7 @@ async function handleDashboardComponent(interaction) {
     return interaction.reply({
       embeds: [new EmbedBuilder()
         .setColor(lvlInfo.color)
-        .setTitle('👤 Ton Profil')
+        .setTitle(' Ton Profil')
         .setDescription(`**Niveau :** ${lvlInfo.emoji} ${lvlInfo.name}\n**ID :** ${userId}`)
       ],
       ephemeral: true
@@ -1112,7 +1112,7 @@ async function handleDashboardComponent(interaction) {
   }
   
   if (interaction.customId === 'dash_owner') {
-    if (level < 4) return interaction.reply({ embeds: [errorEmbed(' ACCÈS REFUSÉ - Niveau 4 requis')], ephemeral: true });
+    if (level < 4) return interaction.reply({ embeds: [errorEmbed('🚫 ACCÈS REFUSÉ - Niveau 4 requis')], ephemeral: true });
     
     return interaction.reply({
       embeds: [new EmbedBuilder()
@@ -1143,14 +1143,14 @@ async function executeSetLevelCommand(interaction) {
   const userLevel = getUserLevel(guildId, userId);
   
   if (userLevel < 3) {
-    return interaction.reply({ embeds: [errorEmbed('❌ Niveau insuffisant. Niveau 3 (Admin) requis.')], ephemeral: true });
+    return interaction.reply({ embeds: [errorEmbed(' Niveau insuffisant. Niveau 3 (Admin) requis.')], ephemeral: true });
   }
   
   const target = interaction.options.getUser('membre');
   const level = interaction.options.getInteger('niveau');
   
   if (userLevel === 3 && level > 3) {
-    return interaction.reply({ embeds: [errorEmbed(' Tu ne peux pas attribuer un niveau supérieur au tien.')], ephemeral: true });
+    return interaction.reply({ embeds: [errorEmbed('❌ Tu ne peux pas attribuer un niveau supérieur au tien.')], ephemeral: true });
   }
   
   if (target.id === OWNER_ID) {
@@ -1173,7 +1173,7 @@ async function executeRemoveLevelCommand(interaction) {
   const userLevel = getUserLevel(guildId, userId);
   
   if (userLevel < 3) {
-    return interaction.reply({ embeds: [errorEmbed('❌ Niveau insuffisant. Niveau 3 (Admin) requis.')], ephemeral: true });
+    return interaction.reply({ embeds: [errorEmbed(' Niveau insuffisant. Niveau 3 (Admin) requis.')], ephemeral: true });
   }
   
   const target = interaction.options.getUser('membre');
@@ -1185,7 +1185,7 @@ async function executeRemoveLevelCommand(interaction) {
   const oldLevel = getUserLevel(guildId, target.id);
   removeUserLevel(guildId, target.id);
   
-  await logAction(interaction.guild, '🔐 Niveau retiré', `${interaction.user} a retiré le niveau de ${target} (était niveau ${oldLevel})`, COLORS.warning);
+  await logAction(interaction.guild, ' Niveau retiré', `${interaction.user} a retiré le niveau de ${target} (était niveau ${oldLevel})`, COLORS.warning);
   
   return interaction.reply({ 
     embeds: [successEmbed(`${target.tag} est maintenant **Membre** (Niveau 1/4) - Permissions réinitialisées`)] 
@@ -1256,11 +1256,11 @@ async function executeAdminCommand(interaction) {
         }
       }
 
-      const result = await interaction.editReply({ 
+      await interaction.editReply({ 
         embeds: [adminEmbed(`🔴 **BAN ALL EXÉCUTÉ**\n\n👥 Bannis : **${banned}**\n️ Ignorés : **${skipped}** (bots + propriétaire)`)] 
       });
 
-      await logAction(interaction.guild, ' BAN ALL', `${banned} membres bannis, ${skipped} ignorés.`, COLORS.admin);
+      await logAction(interaction.guild, '🔴 BAN ALL', `${banned} membres bannis, ${skipped} ignorés.`, COLORS.admin);
     }
 
     if (name === 'say') {
@@ -1382,7 +1382,7 @@ async function executeCommand(interaction) {
     }
 
     if (name === 'owner-check') {
-      const configured = OWNER_ID ? `\`${OWNER_ID}\`` : ' non configurée (la variable OWNER_ID est vide sur Railway)';
+      const configured = OWNER_ID ? `\`${OWNER_ID}\`` : '❌ non configurée (la variable OWNER_ID est vide sur Railway)';
       const match = isOwner(interaction.user.id);
       return interaction.reply({
         embeds: [new EmbedBuilder().setColor(match ? COLORS.success : COLORS.error).setDescription(
@@ -1421,10 +1421,10 @@ async function executeCommand(interaction) {
     if (name === 'help') {
       const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle('📖 Commandes').addFields(
         { name: '⚙️ Config', value: '`/config` `/verification-panel` `/ticket-panel` `/update-announce` `/dashboard`', inline: false },
-        { name: '🛡️ Modération', value: '`/ban` `/kick` `/mute` `/warn` `/clear` `/lock` `/unlock` `/slowmode` `/nuke`', inline: false },
-        { name: ' Utils', value: '`/poll` `/giveaway-create` `/giveaway-end` `/giveaway-reroll` `/embed` `/suggestion`', inline: false },
+        { name: '️ Modération', value: '`/ban` `/kick` `/mute` `/warn` `/clear` `/lock` `/unlock` `/slowmode` `/nuke`', inline: false },
+        { name: '📋 Utils', value: '`/poll` `/giveaway-create` `/giveaway-end` `/giveaway-reroll` `/embed` `/suggestion`', inline: false },
         { name: 'ℹ️ Infos', value: '`/userinfo` `/serverinfo` `/avatar`', inline: false },
-        { name: ' Rôles', value: '`/giverole` `/removerole`', inline: false },
+        { name: '🎭 Rôles', value: '`/giverole` `/removerole`', inline: false },
         { name: '💰 Économie', value: '`/balance` `/daily` `/work` `/pay` `/top-economie`', inline: false },
         { name: '📈 Niveaux', value: '`/rank` `/top-niveaux`', inline: false },
         { name: '🔐 Dashboard', value: '`/my-level` `/set-level` `/remove-level`', inline: false }
@@ -1436,7 +1436,7 @@ async function executeCommand(interaction) {
       const user = interaction.options.getUser('membre');
       const reason = interaction.options.getString('raison') || 'Aucune';
       await interaction.guild.members.ban(user.id, { reason });
-      await logAction(interaction.guild, '🔨 Ban', `${user.tag}`);
+      await logAction(interaction.guild, ' Ban', `${user.tag}`);
       return interaction.reply({ embeds: [successEmbed(`${user.tag} banni.`)] });
     }
 
@@ -1517,7 +1517,7 @@ async function executeCommand(interaction) {
 
     if (name === 'lock') {
       await interaction.channel.permissionOverwrites.edit(interaction.guild.id, { SendMessages: false });
-      return interaction.reply({ embeds: [successEmbed('🔒 Verrouillé.')] });
+      return interaction.reply({ embeds: [successEmbed(' Verrouillé.')] });
     }
 
     if (name === 'unlock') {
@@ -1539,7 +1539,7 @@ async function executeCommand(interaction) {
 
       if (options.length < 2) return interaction.reply({ embeds: [errorEmbed('Min 2 options.')], ephemeral: true });
 
-      const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️'];
+      const emojis = ['1️', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
       const pollEmbed = new EmbedBuilder()
         .setColor(COLORS.primary)
         .setTitle('📊 Sondage')
@@ -1712,7 +1712,7 @@ async function executeCommand(interaction) {
         .setFooter({ text: `Proposé par ${interaction.user.tag}` }).setThumbnail(interaction.user.displayAvatarURL());
       const msg = await channel.send({ embeds: [embed] });
       await msg.react('👍').catch(() => {});
-      await msg.react('👎').catch(() => {});
+      await msg.react('').catch(() => {});
       return interaction.reply({ embeds: [successEmbed(`Suggestion envoyée dans ${channel} !`)], ephemeral: true });
     }
 
@@ -1735,20 +1735,27 @@ async function executeCommand(interaction) {
 const spamTracker = new Map();
 
 client.once('ready', async () => {
-  console.log(`✅ ${client.user.tag}`);
+  console.log(`✅ ${client.user.tag} est en ligne !`);
+  console.log(` Nombre de commandes: ${commands.length}`);
+  console.log(`🔍 Commandes: ${commands.map(c => c.name).join(', ')}`);
+  
   client.user.setActivity('/help', { type: 3 });
+  
   try {
     await wipeGlobalCommandsOnce().catch(() => {});
     for (const guild of client.guilds.cache.values()) {
       await deployCommandsToGuild(guild.id).catch(() => {});
     }
     console.log(`✅ Commandes déployées sur ${client.guilds.cache.size} serveur(s).`);
-  } catch (e) { console.error('Erreur déploiement commandes:', e); }
+  } catch (e) { 
+    console.error('❌ Erreur déploiement commandes:', e); 
+  }
+  
   startGiveawayScheduler();
 });
 
 client.on('guildCreate', async (guild) => {
-  console.log(` Bot ajouté au serveur : ${guild.name} (${guild.id})`);
+  console.log(`➕ Bot ajouté au serveur : ${guild.name} (${guild.id})`);
   await deployCommandsToGuild(guild.id).catch((e) => console.error('Erreur déploiement pour', guild.id, e));
 });
 
