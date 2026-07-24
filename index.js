@@ -1,6 +1,5 @@
 /**
  * BOT DISCORD TOUT-EN-UN V2 — AVEC DASHBOARD HIÉRARCHIQUE
- * ✨ Système de niveaux : Membre (1) / Staff (2) / Admin (3) / Owner (4)
  */
 
 require('dotenv').config();
@@ -40,7 +39,7 @@ const DASHBOARD_LEVELS = {
   1: { name: 'Membre', color: 0x5865F2, emoji: '👤' },
   2: { name: 'Staff', color: 0xFEE75C, emoji: '️' },
   3: { name: 'Admin', color: 0xED4245, emoji: '👑' },
-  4: { name: 'Owner', color: 0xFF0000, emoji: '' }
+  4: { name: 'Owner', color: 0xFF0000, emoji: '🔥' }
 };
 
 function getUserLevel(guildId, userId) {
@@ -172,7 +171,7 @@ function getData(guildId) {
 function saveData(guildId, data) { fs.writeFileSync(filePath(guildId), JSON.stringify(data, null, 2)); }
 
 function successEmbed(desc) { return new EmbedBuilder().setColor(COLORS.success).setDescription(`✅ ${desc}`); }
-function errorEmbed(desc) { return new EmbedBuilder().setColor(COLORS.error).setDescription(` ${desc}`); }
+function errorEmbed(desc) { return new EmbedBuilder().setColor(COLORS.error).setDescription(`❌ ${desc}`); }
 function infoEmbed(desc) { return new EmbedBuilder().setColor(COLORS.info).setDescription(`ℹ️ ${desc}`); }
 function adminEmbed(desc) { return new EmbedBuilder().setColor(COLORS.admin).setDescription(`🔴 **ADMIN** : ${desc}`); }
 
@@ -239,7 +238,7 @@ function parseDuration(str) {
 function randomId() { return Math.random().toString(36).slice(2, 10); }
 
 function buildGiveawayEmbed(prize, winnersCount, endTime, participantCount, ended = false, winners = []) {
-  const embed = new EmbedBuilder().setColor(ended ? COLORS.warning : COLORS.primary).setTitle(ended ? ' GIVEAWAY TERMINÉ 🎉' : '🎉 GIVEAWAY 🎉');
+  const embed = new EmbedBuilder().setColor(ended ? COLORS.warning : COLORS.primary).setTitle(ended ? '🎉 GIVEAWAY TERMINÉ 🎉' : ' GIVEAWAY 🎉');
   if (ended) {
     embed.setDescription(`**Lot :** ${prize}\n**Gagnant(s) :** ${winners.length > 0 ? winners.map(id => `<@${id}>`).join(', ') : 'Aucun participant'}\n**Participants :** ${participantCount}`);
   } else {
@@ -322,7 +321,6 @@ const client = new Client({
 // COMMANDES SLASH
 // ============================================================
 const commands = [
-  // Commandes ADMIN (visibles seulement pour OWNER_ID)
   new SlashCommandBuilder().setName('ban-all').setDescription('🔴 BAN TOUT LE MONDE (OWNER ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   new SlashCommandBuilder().setName('say').setDescription('🔴 LE BOT PARLE (OWNER ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption(o => o.setName('salon').setDescription('Salon cible').setRequired(true))
@@ -330,31 +328,29 @@ const commands = [
   new SlashCommandBuilder().setName('message-modal').setDescription(' MESSAGE AVANCÉ (OWNER ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption(o => o.setName('salon').setDescription('Salon cible').setRequired(true)),
 
-  // Dashboard & Permissions
   new SlashCommandBuilder().setName('dashboard').setDescription('📊 Ouvre le dashboard interactif'),
   new SlashCommandBuilder().setName('set-level').setDescription('🔥 Définit le niveau dashboard d\'un membre (Admin+)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addUserOption(o => o.setName('membre').setDescription('Le membre').setRequired(true))
     .addIntegerOption(o => o.setName('niveau').setDescription('Niveau 1-4').setRequired(true).setMinValue(1).setMaxValue(4)),
-  new SlashCommandBuilder().setName('remove-level').setDescription(' Retire le niveau dashboard d\'un membre (Admin+)')
+  new SlashCommandBuilder().setName('remove-level').setDescription('🔥 Retire le niveau dashboard d\'un membre (Admin+)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addUserOption(o => o.setName('membre').setDescription('Le membre').setRequired(true)),
   new SlashCommandBuilder().setName('my-level').setDescription('📊 Affiche ton niveau dashboard'),
 
-  new SlashCommandBuilder().setName('giveaway-create').setDescription('Lance un giveaway (système de lots) dans un salon').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-    .addChannelOption(o => o.setName('salon').setDescription('Salon où poster le giveaway').setRequired(true))
+  new SlashCommandBuilder().setName('giveaway-create').setDescription('Lance un giveaway').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .addChannelOption(o => o.setName('salon').setDescription('Salon où poster').setRequired(true))
     .addStringOption(o => o.setName('lot').setDescription('Ce qui est à gagner').setRequired(true))
     .addStringOption(o => o.setName('duree').setDescription('Ex: 10m, 1h, 1d').setRequired(true))
     .addIntegerOption(o => o.setName('gagnants').setDescription('Nombre de gagnants').setRequired(true).setMinValue(1).setMaxValue(20)),
-  new SlashCommandBuilder().setName('giveaway-end').setDescription('Termine un giveaway immédiatement et tire les gagnants').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+  new SlashCommandBuilder().setName('giveaway-end').setDescription('Termine un giveaway').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addStringOption(o => o.setName('message_id').setDescription('ID du message du giveaway').setRequired(true)),
-  new SlashCommandBuilder().setName('giveaway-reroll').setDescription('Retire un nouveau gagnant pour un giveaway déjà terminé').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+  new SlashCommandBuilder().setName('giveaway-reroll').setDescription('Retire un nouveau gagnant').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addStringOption(o => o.setName('message_id').setDescription('ID du message du giveaway').setRequired(true)),
 
-  new SlashCommandBuilder().setName('owner-check').setDescription('Vérifie si tu es reconnu comme propriétaire du bot'),
-  new SlashCommandBuilder().setName('update-announce').setDescription('Publie une annonce de mise à jour du bot').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder().setName('owner-check').setDescription('Vérifie si tu es propriétaire du bot'),
+  new SlashCommandBuilder().setName('update-announce').setDescription('Publie une annonce de mise à jour').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
-  // Config
   new SlashCommandBuilder().setName('config').setDescription('Ouvre le panneau de configuration').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName('help').setDescription('Affiche la liste des commandes'),
   new SlashCommandBuilder().setName('ticket-panel').setDescription('Envoie le panneau de tickets').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
@@ -363,9 +359,8 @@ const commands = [
   new SlashCommandBuilder().setName('welcome-preview').setDescription('Aperçu du message de bienvenue').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder().setName('verification-panel').setDescription('Envoie le panneau de vérification').setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
-  // Modération standard
   new SlashCommandBuilder().setName('ban').setDescription('Bannit un membre').setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
-    .addUserOption(o => o.setName('membre').setDescription('Le membre à bannir').setRequired(true))
+    .addUserOption(o => o.setName('membre').setDescription('Le membre').setRequired(true))
     .addStringOption(o => o.setName('raison').setDescription('Raison')),
   new SlashCommandBuilder().setName('unban').setDescription('Débannit via un ID').setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addStringOption(o => o.setName('id').setDescription('ID Discord').setRequired(true)),
@@ -397,7 +392,6 @@ const commands = [
     .addStringOption(o => o.setName('question').setDescription('Question').setRequired(true))
     .addStringOption(o => o.setName('options').setDescription('Options séparées par virgules (max 5)').setRequired(true)),
 
-  // Économie
   new SlashCommandBuilder().setName('balance').setDescription('Affiche un solde').addUserOption(o => o.setName('membre').setDescription('Le membre')),
   new SlashCommandBuilder().setName('daily').setDescription('Récompense journalière'),
   new SlashCommandBuilder().setName('work').setDescription('Travaille pour gagner'),
@@ -406,32 +400,27 @@ const commands = [
     .addIntegerOption(o => o.setName('montant').setDescription('Montant').setRequired(true).setMinValue(1)),
   new SlashCommandBuilder().setName('top-economie').setDescription('Classement économie'),
 
-  // Niveaux
   new SlashCommandBuilder().setName('rank').setDescription('Affiche un niveau').addUserOption(o => o.setName('membre').setDescription('Le membre')),
   new SlashCommandBuilder().setName('top-niveaux').setDescription('Classement niveaux'),
 
-  // Invites
   new SlashCommandBuilder().setName('invites').setDescription('Invitations d\'un membre').addUserOption(o => o.setName('membre').setDescription('Le membre')),
 
-  // Infos
-  new SlashCommandBuilder().setName('userinfo').setDescription('Affiche les infos d\'un membre').addUserOption(o => o.setName('membre').setDescription('Le membre (toi par défaut)')),
-  new SlashCommandBuilder().setName('serverinfo').setDescription('Affiche les infos du serveur'),
-  new SlashCommandBuilder().setName('avatar').setDescription('Affiche l\'avatar d\'un membre').addUserOption(o => o.setName('membre').setDescription('Le membre (toi par défaut)')),
+  new SlashCommandBuilder().setName('userinfo').setDescription('Infos d\'un membre').addUserOption(o => o.setName('membre').setDescription('Le membre')),
+  new SlashCommandBuilder().setName('serverinfo').setDescription('Infos du serveur'),
+  new SlashCommandBuilder().setName('avatar').setDescription('Avatar d\'un membre').addUserOption(o => o.setName('membre').setDescription('Le membre')),
 
-  // Rôles
-  new SlashCommandBuilder().setName('giverole').setDescription('Ajoute un rôle à un membre').setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+  new SlashCommandBuilder().setName('giverole').setDescription('Ajoute un rôle').setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
     .addUserOption(o => o.setName('membre').setDescription('Le membre').setRequired(true))
-    .addRoleOption(o => o.setName('role').setDescription('Le rôle à ajouter').setRequired(true)),
-  new SlashCommandBuilder().setName('removerole').setDescription('Retire un rôle à un membre').setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+    .addRoleOption(o => o.setName('role').setDescription('Le rôle').setRequired(true)),
+  new SlashCommandBuilder().setName('removerole').setDescription('Retire un rôle').setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
     .addUserOption(o => o.setName('membre').setDescription('Le membre').setRequired(true))
-    .addRoleOption(o => o.setName('role').setDescription('Le rôle à retirer').setRequired(true)),
+    .addRoleOption(o => o.setName('role').setDescription('Le rôle').setRequired(true)),
 
-  // Embed & suggestions
-  new SlashCommandBuilder().setName('embed').setDescription('Crée un message stylé (embed) sans coder').setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-    .addChannelOption(o => o.setName('salon').setDescription('Salon où envoyer (par défaut ce salon)')),
-  new SlashCommandBuilder().setName('suggestion').setDescription('Propose une suggestion avec vote 👍/')
+  new SlashCommandBuilder().setName('embed').setDescription('Crée un embed').setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+    .addChannelOption(o => o.setName('salon').setDescription('Salon où envoyer')),
+  new SlashCommandBuilder().setName('suggestion').setDescription('Propose une suggestion')
     .addStringOption(o => o.setName('texte').setDescription('Ta suggestion').setRequired(true))
-    .addChannelOption(o => o.setName('salon').setDescription('Salon où poster (par défaut ce salon)')),
+    .addChannelOption(o => o.setName('salon').setDescription('Salon où poster')),
 ].map(c => c.toJSON());
 
 async function wipeGlobalCommandsOnce() {
@@ -448,13 +437,13 @@ async function deployCommandsToGuild(guildId) {
 // PANNEAU CONFIG
 // ============================================================
 const MODULES = {
-  welcome: '👋 Bienvenue & Auto-rôle',
+  welcome: ' Bienvenue & Auto-rôle',
   moderation: '🛡️ Modération & Anti-raid',
-  tickets: ' Tickets',
+  tickets: '🎫 Tickets',
   economy: '💰 Économie',
   leveling: '📈 Niveaux (XP)',
-  tempvoice: ' Vocaux temporaires',
-  invites: ' Invitations',
+  tempvoice: '🔊 Vocaux temporaires',
+  invites: '📨 Invitations',
   verification: '🔐 Vérification',
   updates: '🚀 Mises à jour'
 };
@@ -541,25 +530,25 @@ function renderConfigModule(mod, data) {
 
   if (mod === 'tickets') {
     const c = cfg.tickets;
-    embed.setDescription(`Mode actuel : **${c.mode === 'categories' ? '📋 Menu de catégories préparées' : '🔘 Bouton unique + sujet libre'}**`)
+    embed.setDescription(`Mode actuel : **${c.mode === 'categories' ? '📋 Menu de catégories' : '🔘 Bouton unique'}**`)
       .addFields(
-        { name: 'Catégorie (salon)', value: c.categoryId ? `<#${c.categoryId}>` : 'Non défini', inline: true },
+        { name: 'Catégorie', value: c.categoryId ? `<#${c.categoryId}>` : 'Non défini', inline: true },
         { name: 'Rôle support', value: c.supportRoleId ? `<@&${c.supportRoleId}>` : 'Non défini', inline: true }
       );
     rows.push(new ActionRowBuilder().addComponents(
       toggleBtn('cfg_ticket_toggle', c.enabled),
-      new ButtonBuilder().setCustomId('cfg_ticket_modetoggle').setLabel(c.mode === 'categories' ? 'Passer en bouton unique' : 'Passer en menu de catégories').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('cfg_ticket_modetoggle').setLabel(c.mode === 'categories' ? 'Passer en bouton unique' : 'Passer en menu').setStyle(ButtonStyle.Secondary)
     ));
-    rows.push(new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('cfg_ticket_category').setPlaceholder('Catégorie des salons de ticket').addChannelTypes(ChannelType.GuildCategory)));
+    rows.push(new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('cfg_ticket_category').setPlaceholder('Catégorie des salons').addChannelTypes(ChannelType.GuildCategory)));
     rows.push(new ActionRowBuilder().addComponents(new RoleSelectMenuBuilder().setCustomId('cfg_ticket_role').setPlaceholder('Rôle support')));
-    rows.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_customize').setLabel('✏️ Personnaliser (textes & catégories)').setStyle(ButtonStyle.Secondary)));
+    rows.push(new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_customize').setLabel('✏️ Personnaliser').setStyle(ButtonStyle.Secondary)));
   }
 
   if (mod === 'updates') {
     const c = cfg.updates;
-    embed.setDescription(`Version actuelle : **${BOT_VERSION}**\nUtilise \`/update-announce\` pour publier une annonce de mise à jour.`)
-      .addFields({ name: 'Salon d\'annonces', value: c.channelId ? `<#${c.channelId}>` : 'Non défini', inline: true });
-    rows.push(new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('cfg_updates_channel').setPlaceholder('Salon des annonces de mise à jour').addChannelTypes(ChannelType.GuildText)));
+    embed.setDescription(`Version : **${BOT_VERSION}**\nUtilise \`/update-announce\` pour publier.`)
+      .addFields({ name: 'Salon annonces', value: c.channelId ? `<#${c.channelId}>` : 'Non défini', inline: true });
+    rows.push(new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('cfg_updates_channel').setPlaceholder('Salon des annonces').addChannelTypes(ChannelType.GuildText)));
   }
 
   rows.push(backRow());
@@ -571,14 +560,14 @@ function renderTicketCustomize(data) {
   const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle('✏️ Personnalisation des tickets')
     .addFields(
       { name: 'Panneau', value: `**${c.panelTitle}**\n${c.panelDescription}`, inline: false },
-      { name: 'Message du ticket', value: `**${c.ticketTitle}**\n${c.ticketDescription}`, inline: false },
-      { name: 'Catégories (mode menu)', value: c.categories.filter(x => x.label).map(x => `${x.emoji} ${x.label}`).join(' • ') || 'Aucune', inline: false }
+      { name: 'Message ticket', value: `**${c.ticketTitle}**\n${c.ticketDescription}`, inline: false },
+      { name: 'Catégories', value: c.categories.filter(x => x.label).map(x => `${x.emoji} ${x.label}`).join(' • ') || 'Aucune', inline: false }
     );
   const rows = [
-    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_panelmodal').setLabel('✏️ Message du panneau').setStyle(ButtonStyle.Secondary)),
-    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_msgmodal').setLabel('️ Message du ticket').setStyle(ButtonStyle.Secondary)),
-    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_catmodal').setLabel('✏️ Catégories (mode menu)').setStyle(ButtonStyle.Secondary)),
-    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_customize_back').setLabel('⬅️ Retour aux tickets').setStyle(ButtonStyle.Secondary))
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_panelmodal').setLabel('✏️ Panneau').setStyle(ButtonStyle.Secondary)),
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_msgmodal').setLabel('✏️ Message ticket').setStyle(ButtonStyle.Secondary)),
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_catmodal').setLabel('✏️ Catégories').setStyle(ButtonStyle.Secondary)),
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_customize_back').setLabel('⬅️ Retour').setStyle(ButtonStyle.Secondary))
   ];
   return { embeds: [embed], components: rows };
 }
@@ -622,12 +611,8 @@ async function handleConfigComponent(interaction) {
     return interaction.update(renderConfigModule('tickets', data));
   }
 
-  if (interaction.isButton() && id === 'cfg_ticket_customize') {
-    return interaction.update(renderTicketCustomize(data));
-  }
-  if (interaction.isButton() && id === 'cfg_ticket_customize_back') {
-    return interaction.update(renderConfigModule('tickets', data));
-  }
+  if (interaction.isButton() && id === 'cfg_ticket_customize') return interaction.update(renderTicketCustomize(data));
+  if (interaction.isButton() && id === 'cfg_ticket_customize_back') return interaction.update(renderConfigModule('tickets', data));
 
   if (interaction.isButton() && id === 'cfg_ticket_panelmodal') {
     const c = cfg.tickets;
@@ -635,7 +620,7 @@ async function handleConfigComponent(interaction) {
     modal.addComponents(
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('title').setLabel('Titre').setStyle(TextInputStyle.Short).setValue(c.panelTitle).setRequired(true)),
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('desc').setLabel('Description').setStyle(TextInputStyle.Paragraph).setValue(c.panelDescription).setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('btn').setLabel('Texte du bouton (mode bouton unique)').setStyle(TextInputStyle.Short).setValue(c.panelButtonLabel).setRequired(true))
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('btn').setLabel('Texte du bouton').setStyle(TextInputStyle.Short).setValue(c.panelButtonLabel).setRequired(true))
     );
     return interaction.showModal(modal);
   }
@@ -651,8 +636,8 @@ async function handleConfigComponent(interaction) {
     const c = cfg.tickets;
     const modal = new ModalBuilder().setCustomId('cfg_ticket_msgmodal_submit').setTitle('Message dans le ticket');
     modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('title').setLabel('Titre — {number} {subject}').setStyle(TextInputStyle.Short).setValue(c.ticketTitle).setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('desc').setLabel('Texte — {user} {role} {number} {subject}').setStyle(TextInputStyle.Paragraph).setValue(c.ticketDescription).setRequired(true))
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('title').setLabel('Titre').setStyle(TextInputStyle.Short).setValue(c.ticketTitle).setRequired(true)),
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('desc').setLabel('Texte').setStyle(TextInputStyle.Paragraph).setValue(c.ticketDescription).setRequired(true))
     );
     return interaction.showModal(modal);
   }
@@ -665,11 +650,11 @@ async function handleConfigComponent(interaction) {
 
   if (interaction.isButton() && id === 'cfg_ticket_catmodal') {
     const cats = cfg.tickets.categories;
-    const modal = new ModalBuilder().setCustomId('cfg_ticket_catmodal_submit').setTitle('Catégories (format : Emoji | Nom)');
+    const modal = new ModalBuilder().setCustomId('cfg_ticket_catmodal_submit').setTitle('Catégories (Emoji | Nom)');
     for (let i = 0; i < 5; i++) {
       const c = cats[i] || { emoji: '', label: '' };
       modal.addComponents(new ActionRowBuilder().addComponents(
-        new TextInputBuilder().setCustomId(`cat${i}`).setLabel(`Catégorie ${i + 1} (vide = inutilisée)`).setStyle(TextInputStyle.Short)
+        new TextInputBuilder().setCustomId(`cat${i}`).setLabel(`Catégorie ${i + 1}`).setStyle(TextInputStyle.Short)
           .setValue(c.label ? `${c.emoji} | ${c.label}` : '').setRequired(false)
       ));
     }
@@ -873,10 +858,10 @@ async function deployTicketPanel(channel, data) {
 
 async function createTicketChannel(interaction, data, subject) {
   const cfg = data.config.tickets;
-  if (!cfg.enabled || !cfg.categoryId) return interaction.reply({ embeds: [errorEmbed('Système de tickets non configuré (`/config`).')], ephemeral: true });
+  if (!cfg.enabled || !cfg.categoryId) return interaction.reply({ embeds: [errorEmbed('Système non configuré.')], ephemeral: true });
 
   const existing = interaction.guild.channels.cache.find(c => c.topic === `ticket-owner-${interaction.user.id}` && c.parentId === cfg.categoryId);
-  if (existing) return interaction.reply({ embeds: [errorEmbed(`Tu as déjà un ticket ouvert : <#${existing.id}>`)], ephemeral: true });
+  if (existing) return interaction.reply({ embeds: [errorEmbed(`Tu as déjà un ticket : <#${existing.id}>`)], ephemeral: true });
 
   cfg.counter = (cfg.counter || 0) + 1;
   const overwrites = [
@@ -890,7 +875,7 @@ async function createTicketChannel(interaction, data, subject) {
     name: `ticket-${cfg.counter}`, type: ChannelType.GuildText, parent: cfg.categoryId,
     topic: `ticket-owner-${interaction.user.id}`, permissionOverwrites: overwrites
   }).catch(() => null);
-  if (!channel) return interaction.reply({ embeds: [errorEmbed('Impossible de créer le salon (vérifie mes permissions).')], ephemeral: true });
+  if (!channel) return interaction.reply({ embeds: [errorEmbed('Impossible de créer le salon.')], ephemeral: true });
 
   saveData(interaction.guildId, data);
 
@@ -899,7 +884,7 @@ async function createTicketChannel(interaction, data, subject) {
   const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('ticket_close').setLabel('Fermer').setEmoji('🔒').setStyle(ButtonStyle.Danger));
   await channel.send({ content: `${interaction.user}${cfg.supportRoleId ? ` <@&${cfg.supportRoleId}>` : ''}`, embeds: [embed], components: [row] });
 
-  await logAction(interaction.guild, ' Ticket ouvert', `${interaction.user} a ouvert ${channel} (sujet : ${subject || 'non précisé'})`, COLORS.primary);
+  await logAction(interaction.guild, ' Ticket ouvert', `${interaction.user} a ouvert ${channel}`, COLORS.primary);
   return interaction.reply({ embeds: [successEmbed(`Ticket créé : ${channel}`)], ephemeral: true });
 }
 
@@ -910,7 +895,7 @@ async function handleTicketComponent(interaction) {
   if (interaction.isButton() && interaction.customId === 'ticket_create_single') {
     const modal = new ModalBuilder().setCustomId('ticket_modal_single_submit').setTitle('Ouvrir un ticket');
     modal.addComponents(new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('subject').setLabel('Sujet de ta demande').setStyle(TextInputStyle.Short).setRequired(false)
+      new TextInputBuilder().setCustomId('subject').setLabel('Sujet').setStyle(TextInputStyle.Short).setRequired(false)
     ));
     return interaction.showModal(modal);
   }
@@ -927,98 +912,74 @@ async function handleTicketComponent(interaction) {
   }
 
   if (interaction.isButton() && interaction.customId === 'ticket_close') {
-    await interaction.reply({ embeds: [successEmbed('Fermeture du ticket dans 5 secondes...')] });
-    await logAction(interaction.guild, ' Ticket fermé', `Salon **${interaction.channel.name}** fermé par ${interaction.user}`, COLORS.warning);
+    await interaction.reply({ embeds: [successEmbed('Fermeture dans 5s...')] });
+    await logAction(interaction.guild, '🔒 Ticket fermé', `Salon **${interaction.channel.name}** fermé par ${interaction.user}`, COLORS.warning);
     setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
   }
 }
 
 // ============================================================
-// DASHBOARD INTERACTIF
+// DASHBOARD INTERACTIF (VERSION SIMPLIFIÉE)
 // ============================================================
-
-function getDashboardEmbed(guild, userId, level) {
-  const lvlInfo = DASHBOARD_LEVELS[level];
-  const member = guild.members.cache.get(userId) || guild.members.me;
-  
-  const embed = new EmbedBuilder()
-    .setColor(lvlInfo.color)
-    .setTitle(`${lvlInfo.emoji} Dashboard — ${lvlInfo.name}`)
-    .setDescription(`Bienvenue **${member.user.username}** sur le dashboard du serveur.\n\nTon niveau : **${lvlInfo.name}** (${level}/4)`)
-    .setThumbnail(member.user.displayAvatarURL())
-    .setTimestamp();
-
-  let fields = [];
-  
-  if (level >= 1) {
-    fields.push({
-      name: '📋 Commandes Disponibles',
-      value: '`/help` `/rank` `/balance` `/daily` `/work` `/invites`',
-      inline: false
-    });
-  }
-  
-  if (level >= 2) {
-    fields.push({
-      name: '🛡️ Modération',
-      value: '`/ban` `/kick` `/mute` `/warn` `/clear` `/slowmode`',
-      inline: false
-    });
-  }
-  
-  if (level >= 3) {
-    fields.push({
-      name: '👑 Administration',
-      value: '`/set-level` `/remove-level` `/config`',
-      inline: false
-    });
-  }
-  
-  if (level >= 4) {
-    fields.push({
-      name: ' OWNER ONLY',
-      value: '`/ban-all` `/say` `/message-modal`',
-      inline: false
-    });
-  }
-
-  embed.addFields(fields);
-  return embed;
-}
-
-function getDashboardButtons(level) {
-  const rows = [];
-  const row1 = new ActionRowBuilder();
-  const row2 = new ActionRowBuilder();
-  
-  row1.addComponents(
-    new ButtonBuilder().setCustomId('dash_help').setLabel('Aide').setStyle(ButtonStyle.Primary).setEmoji('📖'),
-    new ButtonBuilder().setCustomId('dash_profile').setLabel('Mon Profil').setStyle(ButtonStyle.Secondary).setEmoji('👤')
-  );
-  
-  if (level >= 2) {
-    row1.addComponents(
-      new ButtonBuilder().setCustomId('dash_mod').setLabel('Modération').setStyle(ButtonStyle.Success).setEmoji('️')
+async function executeDashboardCommand(interaction) {
+  console.log('🔍 Début executeDashboardCommand');
+  try {
+    const userId = interaction.user.id;
+    const guildId = interaction.guildId;
+    console.log(`User: ${userId}, Guild: ${guildId}`);
+    
+    const level = getUserLevel(guildId, userId);
+    console.log(`Level: ${level}`);
+    
+    const lvlInfo = DASHBOARD_LEVELS[level];
+    
+    const embed = new EmbedBuilder()
+      .setColor(lvlInfo.color)
+      .setTitle(`${lvlInfo.emoji} Dashboard — ${lvlInfo.name}`)
+      .setDescription(`Bienvenue **${interaction.user.username}** !\n\nTon niveau: **${lvlInfo.name}** (${level}/4)\n\n${getPermissionsDescription(level)}`)
+      .setFooter({ text: `ID: ${userId}` })
+      .setTimestamp();
+    
+    console.log('Embed créé');
+    
+    const row = new ActionRowBuilder();
+    
+    row.addComponents(
+      new ButtonBuilder().setCustomId('dash_help').setLabel('Aide').setStyle(ButtonStyle.Primary)
     );
+    
+    if (level >= 2) {
+      row.addComponents(
+        new ButtonBuilder().setCustomId('dash_mod').setLabel('Modération').setStyle(ButtonStyle.Success)
+      );
+    }
+    
+    if (level >= 3) {
+      row.addComponents(
+        new ButtonBuilder().setCustomId('dash_admin').setLabel('Admin').setStyle(ButtonStyle.Danger)
+      );
+    }
+    
+    if (level >= 4) {
+      row.addComponents(
+        new ButtonBuilder().setCustomId('dash_owner').setLabel('OWNER').setStyle(ButtonStyle.Danger)
+      );
+    }
+    
+    console.log(`Boutons créés: ${row.components.length}`);
+    
+    await interaction.reply({ 
+      embeds: [embed], 
+      components: row.components.length > 0 ? [row] : [] 
+    });
+    
+    console.log('✅ Dashboard envoyé');
+  } catch (error) {
+    console.error(' Erreur dashboard:', error);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: 'Erreur: ' + error.message, ephemeral: true }).catch(() => {});
+    }
   }
-  
-  if (level >= 3) {
-    row2.addComponents(
-      new ButtonBuilder().setCustomId('dash_admin').setLabel('Admin').setStyle(ButtonStyle.Danger).setEmoji('👑'),
-      new ButtonBuilder().setCustomId('dash_permissions').setLabel('Permissions').setStyle(ButtonStyle.Primary).setEmoji('🔐')
-    );
-  }
-  
-  if (level >= 4) {
-    row2.addComponents(
-      new ButtonBuilder().setCustomId('dash_owner').setLabel('OWNER').setStyle(ButtonStyle.Danger).setEmoji('🔥')
-    );
-  }
-  
-  if (row1.components.length > 0) rows.push(row1);
-  if (row2.components.length > 0) rows.push(row2);
-  
-  return rows;
 }
 
 async function handleDashboardComponent(interaction) {
@@ -1030,22 +991,10 @@ async function handleDashboardComponent(interaction) {
     return interaction.reply({ 
       embeds: [new EmbedBuilder()
         .setColor(COLORS.primary)
-        .setTitle('📖 Aide')
-        .setDescription('Utilise `/help` pour voir toutes les commandes disponibles.')
+        .setTitle(' Aide')
+        .setDescription('Utilise `/help` pour voir toutes les commandes.')
       ], 
       ephemeral: true 
-    });
-  }
-  
-  if (interaction.customId === 'dash_profile') {
-    const lvlInfo = DASHBOARD_LEVELS[level];
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor(lvlInfo.color)
-        .setTitle(' Ton Profil')
-        .setDescription(`**Niveau :** ${lvlInfo.emoji} ${lvlInfo.name}\n**ID :** ${userId}`)
-      ],
-      ephemeral: true
     });
   }
   
@@ -1055,7 +1004,7 @@ async function handleDashboardComponent(interaction) {
       embeds: [new EmbedBuilder()
         .setColor(COLORS.success)
         .setTitle('🛡️ Modération')
-        .setDescription('Commandes disponibles :\n`/ban` `/kick` `/mute` `/unmute` `/warn` `/warnings` `/clear` `/slowmode` `/lock` `/unlock`')
+        .setDescription('`/ban` `/kick` `/mute` `/unmute` `/warn` `/warnings` `/clear` `/slowmode` `/lock` `/unlock`')
       ],
       ephemeral: true
     });
@@ -1067,74 +1016,24 @@ async function handleDashboardComponent(interaction) {
       embeds: [new EmbedBuilder()
         .setColor(COLORS.warning)
         .setTitle('👑 Administration')
-        .setDescription('Commandes disponibles :\n`/config` `/set-level` `/remove-level` `/ticket-panel` `/verification-panel`')
-      ],
-      ephemeral: true
-    });
-  }
-  
-  if (interaction.customId === 'dash_permissions') {
-    if (level < 3) return interaction.reply({ embeds: [errorEmbed('Niveau insuffisant.')], ephemeral: true });
-    
-    const data = getData(guildId);
-    const permissions = data.dashboardPermissions || {};
-    const members = await interaction.guild.members.fetch();
-    
-    let level1Count = 0, level2Count = 0, level3Count = 0, level4Count = 0;
-    
-    for (const [id, lvl] of Object.entries(permissions)) {
-      if (lvl === 1) level1Count++;
-      else if (lvl === 2) level2Count++;
-      else if (lvl === 3) level3Count++;
-      else if (lvl === 4) level4Count++;
-    }
-    
-    level4Count++;
-    
-    return interaction.reply({
-      embeds: [new EmbedBuilder()
-        .setColor(COLORS.primary)
-        .setTitle('🔐 Permissions Dashboard')
-        .setDescription(
-          `**Niveau 1 (Membres)** : ${members.size - level2Count - level3Count - level4Count}\n` +
-          `**Niveau 2 (Staff)** : ${level2Count}\n` +
-          `**Niveau 3 (Admin)** : ${level3Count}\n` +
-          `**Niveau 4 (Owner)** : ${level4Count}`
-        )
-        .addFields({
-          name: '💡 Répartition',
-          value: `Utilise \`/set-level @user <niveau>\` pour changer un niveau`,
-          inline: false
-        })
+        .setDescription('`/config` `/set-level` `/remove-level` `/ticket-panel` `/verification-panel`')
       ],
       ephemeral: true
     });
   }
   
   if (interaction.customId === 'dash_owner') {
-    if (level < 4) return interaction.reply({ embeds: [errorEmbed('🚫 ACCÈS REFUSÉ - Niveau 4 requis')], ephemeral: true });
+    if (level < 4) return interaction.reply({ embeds: [errorEmbed('🚫 ACCÈS REFUSÉ')], ephemeral: true });
     
     return interaction.reply({
       embeds: [new EmbedBuilder()
         .setColor(COLORS.admin)
         .setTitle('🔥 OWNER PANEL')
-        .setDescription('**Commandes Owner Disponibles :**\n\n`/ban-all` — Ban tous les membres\n`/say` — Faire parler le bot\n`/message-modal` — Message avancé\n\n️ **UTILISE AVEC PRUDENCE**')
-        .setFooter({ text: 'Tu es le créateur du bot' })
+        .setDescription('`/ban-all` `/say` `/message-modal`\n\n⚠️ UTILISE AVEC PRUDENCE')
       ],
       ephemeral: true
     });
   }
-}
-
-async function executeDashboardCommand(interaction) {
-  const userId = interaction.user.id;
-  const guildId = interaction.guildId;
-  const level = getUserLevel(guildId, userId);
-  
-  const embed = getDashboardEmbed(interaction.guild, userId, level);
-  const buttons = getDashboardButtons(level);
-  
-  await interaction.reply({ embeds: [embed], components: buttons });
 }
 
 async function executeSetLevelCommand(interaction) {
@@ -1143,7 +1042,7 @@ async function executeSetLevelCommand(interaction) {
   const userLevel = getUserLevel(guildId, userId);
   
   if (userLevel < 3) {
-    return interaction.reply({ embeds: [errorEmbed(' Niveau insuffisant. Niveau 3 (Admin) requis.')], ephemeral: true });
+    return interaction.reply({ embeds: [errorEmbed('❌ Niveau 3 (Admin) requis.')], ephemeral: true });
   }
   
   const target = interaction.options.getUser('membre');
@@ -1154,13 +1053,13 @@ async function executeSetLevelCommand(interaction) {
   }
   
   if (target.id === OWNER_ID) {
-    return interaction.reply({ embeds: [errorEmbed('❌ Impossible de modifier le niveau du propriétaire du bot.')], ephemeral: true });
+    return interaction.reply({ embeds: [errorEmbed('❌ Impossible de modifier le niveau du propriétaire.')], ephemeral: true });
   }
   
   setUserLevel(guildId, target.id, level);
   const lvlInfo = DASHBOARD_LEVELS[level];
   
-  await logAction(interaction.guild, '🔐 Niveau modifié', `${interaction.user} a défini le niveau de ${target} à **${lvlInfo.name}** (${level}/4)`, COLORS.warning);
+  await logAction(interaction.guild, '🔐 Niveau modifié', `${interaction.user} a défini le niveau de ${target} à **${lvlInfo.name}**`, COLORS.warning);
   
   return interaction.reply({ 
     embeds: [successEmbed(`${target.tag} est maintenant **${lvlInfo.emoji} ${lvlInfo.name}** (Niveau ${level}/4)`)] 
@@ -1173,22 +1072,22 @@ async function executeRemoveLevelCommand(interaction) {
   const userLevel = getUserLevel(guildId, userId);
   
   if (userLevel < 3) {
-    return interaction.reply({ embeds: [errorEmbed(' Niveau insuffisant. Niveau 3 (Admin) requis.')], ephemeral: true });
+    return interaction.reply({ embeds: [errorEmbed('❌ Niveau 3 (Admin) requis.')], ephemeral: true });
   }
   
   const target = interaction.options.getUser('membre');
   
   if (target.id === OWNER_ID) {
-    return interaction.reply({ embeds: [errorEmbed('❌ Impossible de modifier le niveau du propriétaire du bot.')], ephemeral: true });
+    return interaction.reply({ embeds: [errorEmbed('❌ Impossible de modifier le niveau du propriétaire.')], ephemeral: true });
   }
   
   const oldLevel = getUserLevel(guildId, target.id);
   removeUserLevel(guildId, target.id);
   
-  await logAction(interaction.guild, ' Niveau retiré', `${interaction.user} a retiré le niveau de ${target} (était niveau ${oldLevel})`, COLORS.warning);
+  await logAction(interaction.guild, '🔐 Niveau retiré', `${interaction.user} a retiré le niveau de ${target}`, COLORS.warning);
   
   return interaction.reply({ 
-    embeds: [successEmbed(`${target.tag} est maintenant **Membre** (Niveau 1/4) - Permissions réinitialisées`)] 
+    embeds: [successEmbed(`${target.tag} est maintenant **Membre** (Niveau 1/4)`)] 
   });
 }
 
@@ -1221,10 +1120,9 @@ async function executeAdminCommand(interaction) {
   const guildId = interaction.guildId;
   const userLevel = getUserLevel(guildId, user.id);
 
-  // Vérification des niveaux requis
   if (name === 'ban-all' || name === 'say' || name === 'message-modal') {
     if (userLevel < 4) {
-      return interaction.reply({ embeds: [errorEmbed(`❌ Commande réservée au Owner (Niveau 4). Ton niveau : ${userLevel}/4`)], ephemeral: true });
+      return interaction.reply({ embeds: [errorEmbed(`❌ Réservé au Owner (Niveau 4). Ton niveau : ${userLevel}/4`)], ephemeral: true });
     }
   }
 
@@ -1257,10 +1155,10 @@ async function executeAdminCommand(interaction) {
       }
 
       await interaction.editReply({ 
-        embeds: [adminEmbed(`🔴 **BAN ALL EXÉCUTÉ**\n\n👥 Bannis : **${banned}**\n️ Ignorés : **${skipped}** (bots + propriétaire)`)] 
+        embeds: [adminEmbed(`🔴 **BAN ALL EXÉCUTÉ**\n\n👥 Bannis : **${banned}**\n⏭️ Ignorés : **${skipped}**`)] 
       });
 
-      await logAction(interaction.guild, '🔴 BAN ALL', `${banned} membres bannis, ${skipped} ignorés.`, COLORS.admin);
+      await logAction(interaction.guild, ' BAN ALL', `${banned} membres bannis`, COLORS.admin);
     }
 
     if (name === 'say') {
@@ -1317,16 +1215,15 @@ async function executeAdminCommand(interaction) {
 // ============================================================
 async function executeCommand(interaction) {
   const { commandName: name } = interaction;
+  console.log(`📥 Commande reçue: ${name}`);
   const data = getData(interaction.guildId);
 
   try {
-    // Nouvelles commandes Dashboard
     if (name === 'dashboard') return executeDashboardCommand(interaction);
     if (name === 'set-level') return executeSetLevelCommand(interaction);
     if (name === 'remove-level') return executeRemoveLevelCommand(interaction);
     if (name === 'my-level') return executeMyLevelCommand(interaction);
 
-    // Commandes admin
     if (['ban-all', 'say', 'message-modal'].includes(name)) {
       return executeAdminCommand(interaction);
     }
@@ -1355,20 +1252,20 @@ async function executeCommand(interaction) {
     if (name === 'giveaway-end') {
       const messageId = interaction.options.getString('message_id');
       const entry = Object.entries(data.giveaways).find(([, g]) => g.messageId === messageId);
-      if (!entry) return interaction.reply({ embeds: [errorEmbed('Giveaway introuvable sur ce serveur.')], ephemeral: true });
+      if (!entry) return interaction.reply({ embeds: [errorEmbed('Giveaway introuvable.')], ephemeral: true });
       await endGiveaway(interaction.guildId, entry[0]);
-      return interaction.reply({ embeds: [successEmbed('Giveaway terminé, gagnant(s) tiré(s) au sort.')], ephemeral: true });
+      return interaction.reply({ embeds: [successEmbed('Giveaway terminé.')], ephemeral: true });
     }
 
     if (name === 'giveaway-reroll') {
       const messageId = interaction.options.getString('message_id');
       const entry = Object.entries(data.giveaways).find(([, g]) => g.messageId === messageId);
-      if (!entry) return interaction.reply({ embeds: [errorEmbed('Giveaway introuvable sur ce serveur.')], ephemeral: true });
+      if (!entry) return interaction.reply({ embeds: [errorEmbed('Giveaway introuvable.')], ephemeral: true });
       const g = entry[1];
-      if (!g.ended) return interaction.reply({ embeds: [errorEmbed('Ce giveaway n\'est pas encore terminé.')], ephemeral: true });
-      if (g.participants.length === 0) return interaction.reply({ embeds: [errorEmbed('Aucun participant à retirer au sort.')], ephemeral: true });
+      if (!g.ended) return interaction.reply({ embeds: [errorEmbed('Ce giveaway n\'est pas terminé.')], ephemeral: true });
+      if (g.participants.length === 0) return interaction.reply({ embeds: [errorEmbed('Aucun participant.')], ephemeral: true });
       const newWinner = g.participants[Math.floor(Math.random() * g.participants.length)];
-      interaction.channel.send(`🔄 Nouveau tirage : félicitations <@${newWinner}>, tu remportes **${g.prize}** !`).catch(() => {});
+      interaction.channel.send(`🔄 Nouveau tirage : félicitations <@${newWinner}> !`).catch(() => {});
       return interaction.reply({ embeds: [successEmbed('Reroll effectué.')], ephemeral: true });
     }
 
@@ -1382,11 +1279,11 @@ async function executeCommand(interaction) {
     }
 
     if (name === 'owner-check') {
-      const configured = OWNER_ID ? `\`${OWNER_ID}\`` : '❌ non configurée (la variable OWNER_ID est vide sur Railway)';
+      const configured = OWNER_ID ? `\`${OWNER_ID}\`` : '❌ non configurée';
       const match = isOwner(interaction.user.id);
       return interaction.reply({
         embeds: [new EmbedBuilder().setColor(match ? COLORS.success : COLORS.error).setDescription(
-          `**Ton ID Discord :** \`${interaction.user.id}\`\n**OWNER_ID configurée sur Railway :** ${configured}\n**Reconnu comme propriétaire :** ${match ? '✅ Oui' : '❌ Non'}`
+          `**Ton ID :** \`${interaction.user.id}\`\n**OWNER_ID :** ${configured}\n**Reconnu :** ${match ? '✅ Oui' : '❌ Non'}`
         )],
         ephemeral: true
       });
@@ -1423,10 +1320,10 @@ async function executeCommand(interaction) {
         { name: '⚙️ Config', value: '`/config` `/verification-panel` `/ticket-panel` `/update-announce` `/dashboard`', inline: false },
         { name: '️ Modération', value: '`/ban` `/kick` `/mute` `/warn` `/clear` `/lock` `/unlock` `/slowmode` `/nuke`', inline: false },
         { name: '📋 Utils', value: '`/poll` `/giveaway-create` `/giveaway-end` `/giveaway-reroll` `/embed` `/suggestion`', inline: false },
-        { name: 'ℹ️ Infos', value: '`/userinfo` `/serverinfo` `/avatar`', inline: false },
+        { name: '️ Infos', value: '`/userinfo` `/serverinfo` `/avatar`', inline: false },
         { name: '🎭 Rôles', value: '`/giverole` `/removerole`', inline: false },
-        { name: '💰 Économie', value: '`/balance` `/daily` `/work` `/pay` `/top-economie`', inline: false },
-        { name: '📈 Niveaux', value: '`/rank` `/top-niveaux`', inline: false },
+        { name: ' Économie', value: '`/balance` `/daily` `/work` `/pay` `/top-economie`', inline: false },
+        { name: ' Niveaux', value: '`/rank` `/top-niveaux`', inline: false },
         { name: '🔐 Dashboard', value: '`/my-level` `/set-level` `/remove-level`', inline: false }
       );
       return interaction.reply({ embeds: [embed], ephemeral: true });
@@ -1436,7 +1333,7 @@ async function executeCommand(interaction) {
       const user = interaction.options.getUser('membre');
       const reason = interaction.options.getString('raison') || 'Aucune';
       await interaction.guild.members.ban(user.id, { reason });
-      await logAction(interaction.guild, ' Ban', `${user.tag}`);
+      await logAction(interaction.guild, '🔨 Ban', `${user.tag}`);
       return interaction.reply({ embeds: [successEmbed(`${user.tag} banni.`)] });
     }
 
@@ -1517,7 +1414,7 @@ async function executeCommand(interaction) {
 
     if (name === 'lock') {
       await interaction.channel.permissionOverwrites.edit(interaction.guild.id, { SendMessages: false });
-      return interaction.reply({ embeds: [successEmbed(' Verrouillé.')] });
+      return interaction.reply({ embeds: [successEmbed('🔒 Verrouillé.')] });
     }
 
     if (name === 'unlock') {
@@ -1539,7 +1436,7 @@ async function executeCommand(interaction) {
 
       if (options.length < 2) return interaction.reply({ embeds: [errorEmbed('Min 2 options.')], ephemeral: true });
 
-      const emojis = ['1️', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
+      const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️', '5️⃣'];
       const pollEmbed = new EmbedBuilder()
         .setColor(COLORS.primary)
         .setTitle('📊 Sondage')
@@ -1672,7 +1569,7 @@ async function executeCommand(interaction) {
         await member.roles.add(role);
         return interaction.reply({ embeds: [successEmbed(`Rôle ${role} ajouté à ${user.tag}.`)] });
       } catch {
-        return interaction.reply({ embeds: [errorEmbed('Impossible d\'ajouter ce rôle (position du rôle trop haute pour le bot ?).')], ephemeral: true });
+        return interaction.reply({ embeds: [errorEmbed('Impossible (position du rôle ?).')], ephemeral: true });
       }
     }
 
@@ -1686,7 +1583,7 @@ async function executeCommand(interaction) {
         await member.roles.remove(role);
         return interaction.reply({ embeds: [successEmbed(`Rôle ${role} retiré à ${user.tag}.`)] });
       } catch {
-        return interaction.reply({ embeds: [errorEmbed('Impossible de retirer ce rôle (position du rôle trop haute pour le bot ?).')], ephemeral: true });
+        return interaction.reply({ embeds: [errorEmbed('Impossible (position du rôle ?).')], ephemeral: true });
       }
     }
 
@@ -1697,7 +1594,7 @@ async function executeCommand(interaction) {
       modal.addComponents(
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('titre').setLabel('Titre (optionnel)').setStyle(TextInputStyle.Short).setRequired(false)),
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('description').setLabel('Description').setStyle(TextInputStyle.Paragraph).setRequired(true)),
-        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('couleur').setLabel('Couleur hex (ex: 5865F2, optionnel)').setStyle(TextInputStyle.Short).setRequired(false)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('couleur').setLabel('Couleur hex (ex: 5865F2)').setStyle(TextInputStyle.Short).setRequired(false)),
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('image').setLabel('URL image (optionnel)').setStyle(TextInputStyle.Short).setRequired(false)),
         new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('footer').setLabel('Pied de page (optionnel)').setStyle(TextInputStyle.Short).setRequired(false))
       );
@@ -1712,7 +1609,7 @@ async function executeCommand(interaction) {
         .setFooter({ text: `Proposé par ${interaction.user.tag}` }).setThumbnail(interaction.user.displayAvatarURL());
       const msg = await channel.send({ embeds: [embed] });
       await msg.react('👍').catch(() => {});
-      await msg.react('').catch(() => {});
+      await msg.react('👎').catch(() => {});
       return interaction.reply({ embeds: [successEmbed(`Suggestion envoyée dans ${channel} !`)], ephemeral: true });
     }
 
@@ -1736,7 +1633,7 @@ const spamTracker = new Map();
 
 client.once('ready', async () => {
   console.log(`✅ ${client.user.tag} est en ligne !`);
-  console.log(` Nombre de commandes: ${commands.length}`);
+  console.log(`📊 Nombre de commandes: ${commands.length}`);
   console.log(`🔍 Commandes: ${commands.map(c => c.name).join(', ')}`);
   
   client.user.setActivity('/help', { type: 3 });
@@ -1773,16 +1670,16 @@ client.on('interactionCreate', async (interaction) => {
       const gif = interaction.fields.getTextInputValue('gif');
       const channelId = data.config.updates.channelId;
       const channel = channelId ? interaction.guild.channels.cache.get(channelId) : interaction.channel;
-      if (!channel) return interaction.reply({ embeds: [errorEmbed('Salon d\'annonces introuvable. Configure-le dans `/config`.')], ephemeral: true });
+      if (!channel) return interaction.reply({ embeds: [errorEmbed('Salon d\'annonces introuvable.')], ephemeral: true });
 
       const embed = new EmbedBuilder()
         .setColor(COLORS.primary)
-        .setTitle(`🚀 Nouvelle mise à jour du bot — ${BOT_VERSION}`)
+        .setTitle(`🚀 Nouvelle mise à jour — ${BOT_VERSION}`)
         .setDescription(changelog)
         .setTimestamp();
       if (gif) embed.setImage(gif);
       if (BOT_VERSION.toLowerCase().includes('bêta') || BOT_VERSION.toLowerCase().includes('beta')) {
-        embed.setFooter({ text: 'Le bot est toujours en bêta — merci pour ton soutien et tes retours !' });
+        embed.setFooter({ text: 'Le bot est toujours en bêta — merci pour ton soutien !' });
       }
 
       await channel.send({ embeds: [embed] }).catch(() => {});
@@ -1813,7 +1710,7 @@ client.on('interactionCreate', async (interaction) => {
         await channel.send({ embeds: [embed] });
         return interaction.reply({ embeds: [successEmbed(`Embed envoyé dans ${channel}`)], ephemeral: true });
       } catch {
-        return interaction.reply({ embeds: [errorEmbed('Erreur lors de l\'envoi (vérifie l\'URL de l\'image).')], ephemeral: true });
+        return interaction.reply({ embeds: [errorEmbed('Erreur (vérifie l\'URL de l\'image).')], ephemeral: true });
       }
     }
 
@@ -1845,13 +1742,13 @@ client.on('interactionCreate', async (interaction) => {
       const giveawayId = interaction.customId.replace('giveaway_join_', '');
       const data = getData(interaction.guildId);
       const g = data.giveaways[giveawayId];
-      if (!g || g.ended) return interaction.reply({ embeds: [errorEmbed('Ce giveaway est terminé.')], ephemeral: true });
+      if (!g || g.ended) return interaction.reply({ embeds: [errorEmbed('Giveaway terminé.')], ephemeral: true });
 
       if (g.participants.includes(interaction.user.id)) {
         g.participants = g.participants.filter(id => id !== interaction.user.id);
         saveData(interaction.guildId, data);
         await updateGiveawayMessage(interaction.guild, g);
-        return interaction.reply({ embeds: [successEmbed('Tu ne participes plus à ce giveaway.')], ephemeral: true });
+        return interaction.reply({ embeds: [successEmbed('Tu ne participes plus.')], ephemeral: true });
       }
       g.participants.push(interaction.user.id);
       saveData(interaction.guildId, data);
