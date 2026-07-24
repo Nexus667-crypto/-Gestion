@@ -1,9 +1,5 @@
 /**
- * BOT DISCORD TOUT-EN-UN V2 — PANEL STAFF COMPLET
- * - Profil détaillé (arrivée, rôles, pseudos)
- * - Modération via ID + durée/raison
- * - Owner Serveur (propriétaire Discord) : gère les niveaux dashboard
- * - Créateur Bot (OWNER_ID) : Say, Ban All, Update
+ * BOT DISCORD TOUT-EN-UN V2 — PANEL STAFF COMPLET CORRIGÉ
  */
 
 require('dotenv').config();
@@ -20,7 +16,7 @@ const {
 // ============================================================
 // CONFIGURATION
 // ============================================================
-const OWNER_ID = (process.env.OWNER_ID || '').trim(); // Créateur du BOT
+const OWNER_ID = (process.env.OWNER_ID || '').trim();
 function isOwner(userId) { return OWNER_ID.length > 0 && userId === OWNER_ID; }
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -30,7 +26,7 @@ const COLORS = {
   warning: 0xFEE75C, info: 0x00B0F4, admin: 0xFF0000, creator: 0x9B59B6
 };
 
-const BOT_VERSION = 'Bêta V1.4';
+const BOT_VERSION = 'Bêta V1.5';
 
 // ============================================================
 // SYSTÈME DE NIVEAUX DASHBOARD
@@ -39,7 +35,7 @@ const DASHBOARD_LEVELS = {
   1: { name: 'Membre', color: 0x5865F2, emoji: '👤' },
   2: { name: 'Staff', color: 0xFEE75C, emoji: '🛡️' },
   3: { name: 'Admin', color: 0xED4245, emoji: '👑' },
-  4: { name: 'Owner', color: 0xFF0000, emoji: '' }
+  4: { name: 'Owner', color: 0xFF0000, emoji: '🔥' }
 };
 
 function getUserLevel(guildId, userId) {
@@ -63,6 +59,16 @@ function removeUserLevel(guildId, userId) {
   }
 }
 
+function getLevelExplanation() {
+  return [
+    { name: '👤 Niveau 1 — Membre', value: '• Voir son profil\n• Utiliser les commandes de base\n• Économie, niveaux, infos', inline: false },
+    { name: '🛡️ Niveau 2 — Staff', value: '• Tout le Niveau 1\n• Ban / Kick / Mute / Warn\n• Clear messages / Lock / Unlock\n• Slowmode', inline: false },
+    { name: '👑 Niveau 3 — Admin', value: '• Tout le Niveau 2\n• Accéder à la configuration\n• Gérer les panneaux (tickets, vérif)', inline: false },
+    { name: '🔥 Niveau 4 — Owner Bot', value: '• TOUTES les commandes\n• Say / Ban All / Message Modal\n• Réservé au créateur du bot (toi)', inline: false },
+    { name: '👑 Owner Serveur (Discord)', value: '• Propriétaire du serveur Discord\n• Peut donner/retirer les niveaux dashboard\n• N\'a PAS accès à Say/Ban All (réservé créateur bot)', inline: false }
+  ];
+}
+
 function getPermissionsDescription(level) {
   let desc = '';
   if (level >= 1) desc += '• Commandes de base\n';
@@ -81,7 +87,7 @@ function defaultData() {
     config: {
       welcome: {
         enabled: false, channelId: null, dmEnabled: false, dmMessage: 'Bienvenue sur {server} !', autoRoleId: null,
-        title: '👋 Bienvenue !', description: 'Salut {user}, et bienvenue sur **{server}** !',
+        title: ' Bienvenue !', description: 'Salut {user}, et bienvenue sur **{server}** !',
         imageUrl: null, footer: '{server} • Membre #{count}',
         steps: [
           { title: '1. Lis le règlement', text: 'Consulte le règlement du serveur.' },
@@ -195,12 +201,12 @@ function randomId() { return Math.random().toString(36).slice(2, 10); }
 
 function buildGiveawayEmbed(prize, winnersCount, endTime, participantCount, ended = false, winners = []) {
   const embed = new EmbedBuilder().setColor(ended ? COLORS.warning : COLORS.primary)
-    .setTitle(ended ? '🎉 GIVEAWAY TERMINÉ 🎉' : '🎉 GIVEAWAY 🎉');
+    .setTitle(ended ? '🎉 GIVEAWAY TERMINÉ 🎉' : ' GIVEAWAY 🎉');
   if (ended) {
     embed.setDescription(`**Lot :** ${prize}\n**Gagnant(s) :** ${winners.length > 0 ? winners.map(id => `<@${id}>`).join(', ') : 'Aucun participant'}\n**Participants :** ${participantCount}`);
   } else {
     embed.setDescription(`**Lot :** ${prize}\n**Nombre de gagnants :** ${winnersCount}\n**Fin :** <t:${Math.floor(endTime / 1000)}:R>\n**Participants :** ${participantCount}`)
-      .setFooter({ text: 'Clique sur " Participer" pour tenter ta chance !' });
+      .setFooter({ text: 'Clique sur "🎉 Participer" pour tenter ta chance !' });
   }
   return embed;
 }
@@ -235,7 +241,7 @@ async function endGiveaway(guildId, giveawayId) {
   const embed = buildGiveawayEmbed(g.prize, g.winnersCount, g.endTime, g.participants.length, true, winners);
   const msg = await channel.messages.fetch(g.messageId).catch(() => null);
   if (msg) await msg.edit({ embeds: [embed], components: [] }).catch(() => {});
-  if (winners.length > 0) channel.send(` Félicitations ${winners.map(id => `<@${id}>`).join(', ')} ! Tu remportes **${g.prize}** !`).catch(() => {});
+  if (winners.length > 0) channel.send(`🎉 Félicitations ${winners.map(id => `<@${id}>`).join(', ')} ! Tu remportes **${g.prize}** !`).catch(() => {});
   else channel.send(`Aucun participant pour le giveaway **${g.prize}**, pas de gagnant cette fois.`).catch(() => {});
 }
 
@@ -269,11 +275,11 @@ const client = new Client({
 // COMMANDES SLASH
 // ============================================================
 const commands = [
-  new SlashCommandBuilder().setName('ban-all').setDescription('🔴 BAN TOUT LE MONDE (CRÉATEUR BOT ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-  new SlashCommandBuilder().setName('say').setDescription(' LE BOT PARLE (CRÉATEUR BOT ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  new SlashCommandBuilder().setName('ban-all').setDescription(' BAN TOUT LE MONDE (CRÉATEUR BOT ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+  new SlashCommandBuilder().setName('say').setDescription('💬 LE BOT PARLE (CRÉATEUR BOT ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption(o => o.setName('salon').setDescription('Salon cible').setRequired(true))
     .addStringOption(o => o.setName('message').setDescription('Message').setRequired(true)),
-  new SlashCommandBuilder().setName('message-modal').setDescription(' MESSAGE AVANCÉ (CRÉATEUR BOT ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  new SlashCommandBuilder().setName('message-modal').setDescription('🔴 MESSAGE AVANCÉ (CRÉATEUR BOT ONLY)').setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addChannelOption(o => o.setName('salon').setDescription('Salon cible').setRequired(true)),
 
   new SlashCommandBuilder().setName('dashboard').setDescription('📊 Ouvre le panel staff interactif'),
@@ -372,10 +378,10 @@ async function deployCommandsToGuild(guildId) {
 // PANNEAU CONFIG
 // ============================================================
 const MODULES = {
-  welcome: ' Bienvenue & Auto-rôle', moderation: '️ Modération & Anti-raid',
-  tickets: '🎫 Tickets', economy: '💰 Économie', leveling: '📈 Niveaux (XP)',
+  welcome: '👋 Bienvenue & Auto-rôle', moderation: '🛡️ Modération & Anti-raid',
+  tickets: '🎫 Tickets', economy: '💰 Économie', leveling: ' Niveaux (XP)',
   tempvoice: '🔊 Vocaux temporaires', invites: '📨 Invitations',
-  verification: '🔐 Vérification', updates: '🚀 Mises à jour'
+  verification: ' Vérification', updates: '🚀 Mises à jour'
 };
 
 function moduleSelectRow(current) {
@@ -417,7 +423,7 @@ function renderConfigModule(mod, data) {
     const c = cfg.moderation;
     embed.addFields(
       { name: 'Salon logs', value: c.logChannelId ? `<#${c.logChannelId}>` : 'Non défini', inline: true },
-      { name: 'Anti-spam', value: c.antiSpam.enabled ? '✅' : '❌', inline: true },
+      { name: 'Anti-spam', value: c.antiSpam.enabled ? '✅' : '', inline: true },
       { name: 'Anti-everyone', value: c.antiEveryone.enabled ? '✅' : '❌', inline: true }
     );
     rows.push(new ActionRowBuilder().addComponents(new ChannelSelectMenuBuilder().setCustomId('cfg_mod_logchannel').setPlaceholder('Salon logs').addChannelTypes(ChannelType.GuildText)));
@@ -460,7 +466,7 @@ function renderConfigModule(mod, data) {
 
   if (mod === 'tickets') {
     const c = cfg.tickets;
-    embed.setDescription(`Mode : **${c.mode === 'categories' ? ' Menu catégories' : '🔘 Bouton unique'}**`)
+    embed.setDescription(`Mode : **${c.mode === 'categories' ? '📋 Menu catégories' : ' Bouton unique'}**`)
       .addFields(
         { name: 'Catégorie', value: c.categoryId ? `<#${c.categoryId}>` : 'Non défini', inline: true },
         { name: 'Rôle support', value: c.supportRoleId ? `<@&${c.supportRoleId}>` : 'Non défini', inline: true }
@@ -487,17 +493,17 @@ function renderConfigModule(mod, data) {
 
 function renderTicketCustomize(data) {
   const c = data.config.tickets;
-  const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle('✏️ Personnalisation des tickets')
+  const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle('️ Personnalisation des tickets')
     .addFields(
       { name: 'Panneau', value: `**${c.panelTitle}**\n${c.panelDescription}`, inline: false },
       { name: 'Message ticket', value: `**${c.ticketTitle}**\n${c.ticketDescription}`, inline: false },
       { name: 'Catégories', value: c.categories.filter(x => x.label).map(x => `${x.emoji} ${x.label}`).join(' • ') || 'Aucune', inline: false }
     );
   const rows = [
-    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_panelmodal').setLabel('✏️ Panneau').setStyle(ButtonStyle.Secondary)),
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_panelmodal').setLabel('️ Panneau').setStyle(ButtonStyle.Secondary)),
     new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_msgmodal').setLabel('✏️ Message ticket').setStyle(ButtonStyle.Secondary)),
     new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_catmodal').setLabel('✏️ Catégories').setStyle(ButtonStyle.Secondary)),
-    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_customize_back').setLabel('️ Retour').setStyle(ButtonStyle.Secondary))
+    new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('cfg_ticket_customize_back').setLabel('⬅️ Retour').setStyle(ButtonStyle.Secondary))
   ];
   return { embeds: [embed], components: rows };
 }
@@ -698,7 +704,7 @@ async function checkEveryoneMention(message) {
       const member = message.member;
       if (member && member.kickable) {
         await member.kick(`${cfg.threshold} @everyone/@here`).catch(() => {});
-        const kickEmbed = new EmbedBuilder().setColor(COLORS.error).setTitle('👢 Expulsion')
+        const kickEmbed = new EmbedBuilder().setColor(COLORS.error).setTitle(' Expulsion')
           .setDescription(`**${message.author.tag}**\n**Raison :** ${cfg.threshold} mentions @everyone/@here en 15 min`);
         const unkickBtn = new ButtonBuilder().setCustomId(`unkick_${message.author.id}`).setLabel('↩️ Débannir').setStyle(ButtonStyle.Secondary);
         const row = new ActionRowBuilder().addComponents(unkickBtn);
@@ -785,312 +791,324 @@ async function handleTicketComponent(interaction) {
 }
 
 // ============================================================
-// 🎯 PANEL STAFF - DASHBOARD COMPLET
+// 🎯 PANEL STAFF - DASHBOARD COMPLET CORRIGÉ
 // ============================================================
 
 async function executeDashboardCommand(interaction) {
-  const level = getUserLevel(interaction.guildId, interaction.user.id);
-  const lvlInfo = DASHBOARD_LEVELS[level];
-  const isGuildOwner = interaction.guild.ownerId === interaction.user.id;
-  const isBotCreator = isOwner(interaction.user.id);
-
-  const embed = new EmbedBuilder()
-    .setColor(lvlInfo.color)
-    .setTitle(`${lvlInfo.emoji} Panel Staff — ${lvlInfo.name}`)
-    .setDescription(`**${interaction.user.username}**, utilise les boutons ci-dessous :\n\n${getPermissionsDescription(level)}`)
-    .setFooter({ text: `Niveau ${level}/4` })
-    .setTimestamp();
-
-  const row1 = new ActionRowBuilder();
-  const row2 = new ActionRowBuilder();
-
-  // Boutons de base (tout le monde)
-  row1.addComponents(
-    new ButtonBuilder().setCustomId('dash_profile').setLabel('👤 Profil').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('dash_help').setLabel('📖 Aide').setStyle(ButtonStyle.Primary)
-  );
-
-  // Modération (niveau 2+)
-  if (level >= 2) {
-    row1.addComponents(new ButtonBuilder().setCustomId('dash_mod').setLabel('🛡️ Modération').setStyle(ButtonStyle.Success));
-  }
-
-  // Owner Serveur (propriétaire Discord) - gère les niveaux
-  if (isGuildOwner) {
-    row2.addComponents(
-      new ButtonBuilder().setCustomId('dash_guildowner').setLabel('👑 Owner Serveur').setStyle(ButtonStyle.Danger)
-    );
-  }
-
-  // Config (niveau 3+)
-  if (level >= 3) {
-    row2.addComponents(new ButtonBuilder().setCustomId('dash_config').setLabel('⚙️ Config').setStyle(ButtonStyle.Secondary));
-  }
-
-  // Créateur du BOT (OWNER_ID uniquement) - Say, Ban All, Update
-  if (isBotCreator) {
-    row2.addComponents(new ButtonBuilder().setCustomId('dash_creator').setLabel('🔥 Créateur Bot').setStyle(ButtonStyle.Danger));
-  }
-
-  const rows = [];
-  if (row1.components.length > 0) rows.push(row1);
-  if (row2.components.length > 0) rows.push(row2);
-
-  await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
-}
-
-async function handleDashboardButton(interaction) {
-  const level = getUserLevel(interaction.guildId, interaction.user.id);
-  const id = interaction.customId;
-  const isGuildOwner = interaction.guild.ownerId === interaction.user.id;
-  const isBotCreator = isOwner(interaction.user.id);
-
-  // PROFIL DÉTAILLÉ
-  if (id === 'dash_profile') {
+  try {
+    const level = getUserLevel(interaction.guildId, interaction.user.id);
     const lvlInfo = DASHBOARD_LEVELS[level];
-    const member = interaction.member;
-    const joinedTimestamp = member.joinedTimestamp;
-    const joinedDate = joinedTimestamp ? `<t:${Math.floor(joinedTimestamp / 1000)}:R>` : 'Inconnu';
-    const joinedFull = joinedTimestamp ? `<t:${Math.floor(joinedTimestamp / 1000)}:f>` : 'Inconnu';
-    
-    const roles = member.roles.cache
-      .filter(r => r.id !== interaction.guild.id)
-      .sort((a, b) => b.position - a.position)
-      .map(r => `<@&${r.id}>`)
-      .slice(0, 20);
+    const isGuildOwner = interaction.guild.ownerId === interaction.user.id;
+    const isBotCreator = isOwner(interaction.user.id);
 
     const embed = new EmbedBuilder()
       .setColor(lvlInfo.color)
-      .setTitle(' Profil Détaillé')
-      .setThumbnail(interaction.user.displayAvatarURL({ size: 256 }))
-      .addFields(
-        { name: '👤 Pseudo', value: `\`${interaction.user.username}\``, inline: true },
-        { name: '🏷️ Tag complet', value: `\`${interaction.user.tag}\``, inline: true },
-        { name: ' ID', value: `\`${interaction.user.id}\``, inline: true },
-        { name: ' Arrivée sur le serveur', value: `${joinedDate}\n(${joinedFull})`, inline: true },
-        { name: '🎂 Compte créé', value: `<t:${Math.floor(interaction.user.createdTimestamp / 1000)}:R>`, inline: true },
-        { name: '📊 Niveau Dashboard', value: `${lvlInfo.emoji} **${lvlInfo.name}** (${level}/4)`, inline: true },
-        { name: `🎭 Rôles (${roles.length})`, value: roles.length > 0 ? roles.join(' ') : 'Aucun rôle', inline: false }
-      )
-      .setFooter({ text: `ID: ${interaction.user.id}` })
+      .setTitle(`${lvlInfo.emoji} Panel Staff — ${lvlInfo.name}`)
+      .setDescription(`**${interaction.user.username}**, utilise les boutons ci-dessous :\n\n${getPermissionsDescription(level)}`)
+      .addFields(getLevelExplanation())
+      .setFooter({ text: `Niveau ${level}/4` })
       .setTimestamp();
 
-    return interaction.reply({ embeds: [embed], ephemeral: true });
-  }
+    const row1 = new ActionRowBuilder();
+    const row2 = new ActionRowBuilder();
 
-  // AIDE
-  if (id === 'dash_help') {
-    return interaction.reply({
-      embeds: [new EmbedBuilder().setColor(COLORS.primary).setTitle('📖 Aide')
-        .setDescription('Clique sur les boutons pour accéder aux fonctions.\n\n**Boutons disponibles :**\n• 👤 Profil — Tes infos\n• 🛡️ Modération — Ban/Kick/Mute/Warn\n•  Owner Serveur — Gérer les niveaux (propriétaire Discord)\n• ⚙️ Config — Configuration du bot\n• 🔥 Créateur Bot — Say/Ban All/Update (créateur du bot uniquement)')],
-      ephemeral: true
-    });
-  }
-
-  // CONFIG
-  if (id === 'dash_config') {
-    if (level < 3) return interaction.reply({ embeds: [errorEmbed('Niveau 3 requis.')], ephemeral: true });
-    return interaction.update(renderConfigHome());
-  }
-
-  // MENU MODÉRATION
-  if (id === 'dash_mod') {
-    if (level < 2) return interaction.reply({ embeds: [errorEmbed('Niveau 2 requis.')], ephemeral: true });
-    
-    const embed = new EmbedBuilder()
-      .setColor(COLORS.success)
-      .setTitle('🛡️ Modération')
-      .setDescription('Choisis une action :');
-
-    const row1 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('mod_ban').setLabel('🔨 Ban').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('mod_kick').setLabel('👢 Kick').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('mod_mute').setLabel(' Mute').setStyle(ButtonStyle.Warning)
+    row1.addComponents(
+      new ButtonBuilder().setCustomId('dash_profile').setLabel('👤 Profil').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('dash_help').setLabel('📖 Aide').setStyle(ButtonStyle.Primary)
     );
 
-    const row2 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('mod_warn').setLabel('⚠️ Warn').setStyle(ButtonStyle.Warning),
-      new ButtonBuilder().setCustomId('mod_clear').setLabel(' Clear').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('dash_back').setLabel('⬅️ Retour').setStyle(ButtonStyle.Primary)
-    );
-
-    return interaction.update({ embeds: [embed], components: [row1, row2] });
-  }
-
-  // MENU OWNER SERVEUR (propriétaire Discord)
-  if (id === 'dash_guildowner') {
-    if (!isGuildOwner) return interaction.reply({ embeds: [errorEmbed(' Réservé au propriétaire du serveur Discord.')], ephemeral: true });
-    
-    const embed = new EmbedBuilder()
-      .setColor(COLORS.warning)
-      .setTitle('👑 Owner Serveur')
-      .setDescription('Tu es le **propriétaire de ce serveur Discord**.\n\nTu peux gérer les niveaux dashboard des membres.');
-
-    const row1 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('owner_setlevel').setLabel('🔐 Donner un niveau').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('owner_removelevel').setLabel('❌ Retirer un niveau').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('owner_mylevel').setLabel('📊 Mon niveau').setStyle(ButtonStyle.Secondary)
-    );
-
-    const row2 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('dash_back').setLabel('⬅️ Retour').setStyle(ButtonStyle.Primary)
-    );
-
-    return interaction.update({ embeds: [embed], components: [row1, row2] });
-  }
-
-  // MENU CRÉATEUR BOT (OWNER_ID uniquement)
-  if (id === 'dash_creator') {
-    if (!isBotCreator) return interaction.reply({ embeds: [errorEmbed('🚫 ACCÈS REFUSÉ — Réservé au créateur du bot.')], ephemeral: true });
-    
-    const embed = new EmbedBuilder()
-      .setColor(COLORS.creator)
-      .setTitle('🔥 Créateur du Bot')
-      .setDescription('⚠️ **Commandes puissantes — Toi uniquement (OWNER_ID)**\n\nChoisis une action :');
-
-    const row1 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('creator_say').setLabel('💬 Say').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('creator_banall').setLabel(' Ban All').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('creator_update').setLabel('🚀 Mise à jour').setStyle(ButtonStyle.Success)
-    );
-
-    const row2 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('dash_back').setLabel('⬅️ Retour').setStyle(ButtonStyle.Secondary)
-    );
-
-    return interaction.update({ embeds: [embed], components: [row1, row2] });
-  }
-
-  // RETOUR
-  if (id === 'dash_back') {
-    return executeDashboardCommand(interaction);
-  }
-
-  // === ACTIONS MODÉRATION ===
-  
-  if (id === 'mod_ban') {
-    const modal = new ModalBuilder().setCustomId('modal_ban').setTitle('🔨 Bannir un membre');
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('ban_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('ban_reason').setLabel('Raison').setStyle(TextInputStyle.Paragraph).setRequired(false))
-    );
-    return interaction.showModal(modal);
-  }
-
-  if (id === 'mod_kick') {
-    const modal = new ModalBuilder().setCustomId('modal_kick').setTitle('👢 Expulser un membre');
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('kick_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('kick_reason').setLabel('Raison').setStyle(TextInputStyle.Paragraph).setRequired(false))
-    );
-    return interaction.showModal(modal);
-  }
-
-  if (id === 'mod_mute') {
-    const modal = new ModalBuilder().setCustomId('modal_mute').setTitle('🔇 Muter un membre');
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('mute_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('mute_duration').setLabel('Durée (10m, 1h, 1d)').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 10m').setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('mute_reason').setLabel('Raison').setStyle(TextInputStyle.Paragraph).setRequired(false))
-    );
-    return interaction.showModal(modal);
-  }
-
-  if (id === 'mod_warn') {
-    const modal = new ModalBuilder().setCustomId('modal_warn').setTitle('⚠️ Avertir un membre');
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('warn_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('warn_reason').setLabel('Raison').setStyle(TextInputStyle.Paragraph).setRequired(true))
-    );
-    return interaction.showModal(modal);
-  }
-
-  if (id === 'mod_clear') {
-    const modal = new ModalBuilder().setCustomId('modal_clear').setTitle('🧹 Supprimer des messages');
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('clear_amount').setLabel('Nombre (1-100)').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 50').setRequired(true))
-    );
-    return interaction.showModal(modal);
-  }
-
-  // === ACTIONS OWNER SERVEUR ===
-  
-  if (id === 'owner_setlevel') {
-    if (!isGuildOwner) return interaction.reply({ embeds: [errorEmbed('Réservé au propriétaire du serveur.')], ephemeral: true });
-    const modal = new ModalBuilder().setCustomId('modal_setlevel').setTitle('🔐 Donner un niveau dashboard');
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('setlevel_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('setlevel_level').setLabel('Niveau (1=Membre, 2=Staff, 3=Admin, 4=Owner)').setStyle(TextInputStyle.Short).setPlaceholder('1, 2, 3 ou 4').setRequired(true))
-    );
-    return interaction.showModal(modal);
-  }
-
-  if (id === 'owner_removelevel') {
-    if (!isGuildOwner) return interaction.reply({ embeds: [errorEmbed('Réservé au propriétaire du serveur.')], ephemeral: true });
-    const modal = new ModalBuilder().setCustomId('modal_removelevel').setTitle('❌ Retirer un niveau');
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('removelevel_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true))
-    );
-    return interaction.showModal(modal);
-  }
-
-  if (id === 'owner_mylevel') {
-    const lvlInfo = DASHBOARD_LEVELS[level];
-    return interaction.reply({
-      embeds: [new EmbedBuilder().setColor(lvlInfo.color).setTitle(' Ton Niveau')
-        .setDescription(`**Niveau :** ${level}/4\n**Titre :** ${lvlInfo.emoji} ${lvlInfo.name}\n\n${getPermissionsDescription(level)}`)],
-      ephemeral: true
-    });
-  }
-
-  // === ACTIONS CRÉATEUR BOT ===
-  
-  if (id === 'creator_say') {
-    if (!isBotCreator) return interaction.reply({ embeds: [errorEmbed('🚫 Réservé au créateur du bot.')], ephemeral: true });
-    const modal = new ModalBuilder().setCustomId('modal_say').setTitle('💬 Faire parler le bot');
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('say_channelid').setLabel('ID du salon cible').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('say_message').setLabel('Message à envoyer').setStyle(TextInputStyle.Paragraph).setPlaceholder('Ton message...').setRequired(true))
-    );
-    return interaction.showModal(modal);
-  }
-
-  if (id === 'creator_banall') {
-    if (!isBotCreator) return interaction.reply({ embeds: [errorEmbed('🚫 Réservé au créateur du bot.')], ephemeral: true });
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('creator_banall_confirm').setLabel('️ CONFIRMER BAN ALL').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('dash_back').setLabel('Annuler').setStyle(ButtonStyle.Secondary)
-    );
-    return interaction.reply({
-      embeds: [new EmbedBuilder().setColor(COLORS.error).setTitle('⚠️ CONFIRMATION BAN ALL')
-        .setDescription('**ATTENTION :** Cette action va bannir TOUS les membres du serveur (sauf bots et toi).\n\nCette action est **IRRÉVERSIBLE** !')],
-      components: [row],
-      ephemeral: true
-    });
-  }
-
-  if (id === 'creator_banall_confirm') {
-    if (!isBotCreator) return interaction.reply({ embeds: [errorEmbed('🚫 Réservé au créateur du bot.')], ephemeral: true });
-    await interaction.deferReply({ ephemeral: true });
-    const members = await interaction.guild.members.fetch();
-    let banned = 0, skipped = 0;
-    for (const [id, member] of members) {
-      if (member.user.bot || member.id === OWNER_ID || member.id === client.user.id) { skipped++; continue; }
-      if (member.bannable) { try { await member.ban({ reason: 'Ban All via Panel Créateur' }); banned++; } catch { skipped++; } }
-      else { skipped++; }
+    if (level >= 2) {
+      row1.addComponents(new ButtonBuilder().setCustomId('dash_mod').setLabel('️ Modération').setStyle(ButtonStyle.Success));
     }
-    await logAction(interaction.guild, '🔴 BAN ALL (Créateur)', `${banned} bannis, ${skipped} ignorés`, COLORS.admin);
-    return interaction.editReply({ embeds: [new EmbedBuilder().setColor(COLORS.admin).setTitle('✅ BAN ALL EXÉCUTÉ').setDescription(`Bannis : **${banned}**\nIgnorés : **${skipped}**`)] });
-  }
 
-  if (id === 'creator_update') {
-    if (!isBotCreator) return interaction.reply({ embeds: [errorEmbed('🚫 Réservé au créateur du bot.')], ephemeral: true });
-    const modal = new ModalBuilder().setCustomId('modal_update').setTitle(`🚀 Annonce de mise à jour — ${BOT_VERSION}`);
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('update_changelog').setLabel('Description des changements').setStyle(TextInputStyle.Paragraph).setPlaceholder('Nouveautés, corrections...').setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('update_gif').setLabel('URL d\'un GIF (optionnel)').setStyle(TextInputStyle.Short).setPlaceholder('https://...').setRequired(false))
-    );
-    return interaction.showModal(modal);
+    if (isGuildOwner) {
+      row2.addComponents(
+        new ButtonBuilder().setCustomId('dash_guildowner').setLabel('👑 Owner Serveur').setStyle(ButtonStyle.Danger)
+      );
+    }
+
+    if (level >= 3) {
+      row2.addComponents(new ButtonBuilder().setCustomId('dash_config').setLabel('⚙️ Config').setStyle(ButtonStyle.Secondary));
+    }
+
+    if (isBotCreator) {
+      row2.addComponents(new ButtonBuilder().setCustomId('dash_creator').setLabel(' Créateur Bot').setStyle(ButtonStyle.Danger));
+    }
+
+    const rows = [];
+    if (row1.components.length > 0) rows.push(row1);
+    if (row2.components.length > 0) rows.push(row2);
+
+    await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
+  } catch (error) {
+    console.error('Erreur dashboard:', error);
+    await interaction.reply({ content: '❌ Erreur: ' + error.message, ephemeral: true }).catch(() => {});
+  }
+}
+
+async function handleDashboardButton(interaction) {
+  try {
+    const level = getUserLevel(interaction.guildId, interaction.user.id);
+    const id = interaction.customId;
+    const isGuildOwner = interaction.guild.ownerId === interaction.user.id;
+    const isBotCreator = isOwner(interaction.user.id);
+
+    // PROFIL DÉTAILLÉ
+    if (id === 'dash_profile') {
+      const lvlInfo = DASHBOARD_LEVELS[level];
+      const member = interaction.member;
+      const joinedTimestamp = member.joinedTimestamp;
+      const joinedDate = joinedTimestamp ? `<t:${Math.floor(joinedTimestamp / 1000)}:R>` : 'Inconnu';
+      const joinedFull = joinedTimestamp ? `<t:${Math.floor(joinedTimestamp / 1000)}:f>` : 'Inconnu';
+      
+      const roles = member.roles.cache
+        .filter(r => r.id !== interaction.guild.id)
+        .sort((a, b) => b.position - a.position)
+        .map(r => `<@&${r.id}>`)
+        .slice(0, 20);
+
+      const embed = new EmbedBuilder()
+        .setColor(lvlInfo.color)
+        .setTitle('👤 Profil Détaillé')
+        .setThumbnail(interaction.user.displayAvatarURL({ size: 256 }))
+        .addFields(
+          { name: ' Pseudo', value: `\`${interaction.user.username}\``, inline: true },
+          { name: '🏷️ Tag complet', value: `\`${interaction.user.tag}\``, inline: true },
+          { name: '🆔 ID', value: `\`${interaction.user.id}\``, inline: true },
+          { name: '📅 Arrivée sur le serveur', value: `${joinedDate}\n(${joinedFull})`, inline: true },
+          { name: ' Compte créé', value: `<t:${Math.floor(interaction.user.createdTimestamp / 1000)}:R>`, inline: true },
+          { name: '📊 Niveau Dashboard', value: `${lvlInfo.emoji} **${lvlInfo.name}** (${level}/4)`, inline: true },
+          { name: `🎭 Rôles (${roles.length})`, value: roles.length > 0 ? roles.join(' ') : 'Aucun rôle', inline: false }
+        )
+        .setFooter({ text: `ID: ${interaction.user.id}` })
+        .setTimestamp();
+
+      return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
+    // AIDE
+    if (id === 'dash_help') {
+      return interaction.reply({
+        embeds: [new EmbedBuilder().setColor(COLORS.primary).setTitle('📖 Aide')
+          .setDescription('Clique sur les boutons pour accéder aux fonctions.\n\n**Boutons disponibles :**\n• 👤 Profil — Tes infos\n• 🛡️ Modération — Ban/Kick/Mute/Warn\n• 👑 Owner Serveur — Gérer les niveaux (propriétaire Discord)\n• ⚙️ Config — Configuration du bot\n• 🔥 Créateur Bot — Say/Ban All/Update (créateur du bot uniquement)')],
+        ephemeral: true
+      });
+    }
+
+    // CONFIG
+    if (id === 'dash_config') {
+      if (level < 3) return interaction.reply({ embeds: [errorEmbed('Niveau 3 requis.')], ephemeral: true });
+      return interaction.reply({ ...renderConfigHome(), ephemeral: true });
+    }
+
+    // MENU MODÉRATION — CORRIGÉ (utilise reply au lieu de update)
+    if (id === 'dash_mod') {
+      if (level < 2) return interaction.reply({ embeds: [errorEmbed('Niveau 2 requis.')], ephemeral: true });
+      
+      const embed = new EmbedBuilder()
+        .setColor(COLORS.success)
+        .setTitle('🛡️ Modération')
+        .setDescription('Choisis une action :');
+
+      const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('mod_ban').setLabel('🔨 Ban').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('mod_kick').setLabel(' Kick').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('mod_mute').setLabel('🔇 Mute').setStyle(ButtonStyle.Warning)
+      );
+
+      const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('mod_warn').setLabel('⚠️ Warn').setStyle(ButtonStyle.Warning),
+        new ButtonBuilder().setCustomId('mod_clear').setLabel('🧹 Clear').setStyle(ButtonStyle.Secondary)
+      );
+
+      const row3 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('dash_back').setLabel('⬅️ Retour').setStyle(ButtonStyle.Primary)
+      );
+
+      return interaction.reply({ embeds: [embed], components: [row1, row2, row3], ephemeral: true });
+    }
+
+    // MENU OWNER SERVEUR
+    if (id === 'dash_guildowner') {
+      if (!isGuildOwner) return interaction.reply({ embeds: [errorEmbed('🚫 Réservé au propriétaire du serveur Discord.')], ephemeral: true });
+      
+      const embed = new EmbedBuilder()
+        .setColor(COLORS.warning)
+        .setTitle('👑 Owner Serveur')
+        .setDescription('Tu es le **propriétaire de ce serveur Discord**.\n\nTu peux gérer les niveaux dashboard des membres.');
+
+      const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('owner_setlevel').setLabel('🔐 Donner un niveau').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('owner_removelevel').setLabel(' Retirer un niveau').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('owner_mylevel').setLabel('📊 Mon niveau').setStyle(ButtonStyle.Secondary)
+      );
+
+      const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('dash_back').setLabel('⬅️ Retour').setStyle(ButtonStyle.Primary)
+      );
+
+      return interaction.reply({ embeds: [embed], components: [row1, row2], ephemeral: true });
+    }
+
+    // MENU CRÉATEUR BOT
+    if (id === 'dash_creator') {
+      if (!isBotCreator) return interaction.reply({ embeds: [errorEmbed('🚫 ACCÈS REFUSÉ — Réservé au créateur du bot.')], ephemeral: true });
+      
+      const embed = new EmbedBuilder()
+        .setColor(COLORS.creator)
+        .setTitle('🔥 Créateur du Bot')
+        .setDescription('⚠️ **Commandes puissantes — Toi uniquement (OWNER_ID)**\n\nChoisis une action :');
+
+      const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('creator_say').setLabel('💬 Say').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('creator_banall').setLabel('💣 Ban All').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('creator_update').setLabel('🚀 Mise à jour').setStyle(ButtonStyle.Success)
+      );
+
+      const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('dash_back').setLabel('⬅️ Retour').setStyle(ButtonStyle.Secondary)
+      );
+
+      return interaction.reply({ embeds: [embed], components: [row1, row2], ephemeral: true });
+    }
+
+    // RETOUR
+    if (id === 'dash_back') {
+      return executeDashboardCommand(interaction);
+    }
+
+    // === ACTIONS MODÉRATION ===
+    
+    if (id === 'mod_ban') {
+      const modal = new ModalBuilder().setCustomId('modal_ban').setTitle('🔨 Bannir un membre');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('ban_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('ban_reason').setLabel('Raison').setStyle(TextInputStyle.Paragraph).setRequired(false))
+      );
+      return interaction.showModal(modal);
+    }
+
+    if (id === 'mod_kick') {
+      const modal = new ModalBuilder().setCustomId('modal_kick').setTitle('👢 Expulser un membre');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('kick_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('kick_reason').setLabel('Raison').setStyle(TextInputStyle.Paragraph).setRequired(false))
+      );
+      return interaction.showModal(modal);
+    }
+
+    if (id === 'mod_mute') {
+      const modal = new ModalBuilder().setCustomId('modal_mute').setTitle('🔇 Muter un membre');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('mute_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('mute_duration').setLabel('Durée (10m, 1h, 1d)').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 10m').setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('mute_reason').setLabel('Raison').setStyle(TextInputStyle.Paragraph).setRequired(false))
+      );
+      return interaction.showModal(modal);
+    }
+
+    if (id === 'mod_warn') {
+      const modal = new ModalBuilder().setCustomId('modal_warn').setTitle('⚠️ Avertir un membre');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('warn_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('warn_reason').setLabel('Raison').setStyle(TextInputStyle.Paragraph).setRequired(true))
+      );
+      return interaction.showModal(modal);
+    }
+
+    if (id === 'mod_clear') {
+      const modal = new ModalBuilder().setCustomId('modal_clear').setTitle('🧹 Supprimer des messages');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('clear_amount').setLabel('Nombre (1-100)').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 50').setRequired(true))
+      );
+      return interaction.showModal(modal);
+    }
+
+    // === ACTIONS OWNER SERVEUR ===
+    
+    if (id === 'owner_setlevel') {
+      if (!isGuildOwner) return interaction.reply({ embeds: [errorEmbed('Réservé au propriétaire du serveur.')], ephemeral: true });
+      const modal = new ModalBuilder().setCustomId('modal_setlevel').setTitle('🔐 Donner un niveau dashboard');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('setlevel_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('setlevel_level').setLabel('Niveau (1=Membre, 2=Staff, 3=Admin, 4=Owner)').setStyle(TextInputStyle.Short).setPlaceholder('1, 2, 3 ou 4').setRequired(true))
+      );
+      return interaction.showModal(modal);
+    }
+
+    if (id === 'owner_removelevel') {
+      if (!isGuildOwner) return interaction.reply({ embeds: [errorEmbed('Réservé au propriétaire du serveur.')], ephemeral: true });
+      const modal = new ModalBuilder().setCustomId('modal_removelevel').setTitle('❌ Retirer un niveau');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('removelevel_userid').setLabel('ID du membre').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true))
+      );
+      return interaction.showModal(modal);
+    }
+
+    if (id === 'owner_mylevel') {
+      const lvlInfo = DASHBOARD_LEVELS[level];
+      return interaction.reply({
+        embeds: [new EmbedBuilder().setColor(lvlInfo.color).setTitle(' Ton Niveau')
+          .setDescription(`**Niveau :** ${level}/4\n**Titre :** ${lvlInfo.emoji} ${lvlInfo.name}\n\n${getPermissionsDescription(level)}`)],
+        ephemeral: true
+      });
+    }
+
+    // === ACTIONS CRÉATEUR BOT ===
+    
+    if (id === 'creator_say') {
+      if (!isBotCreator) return interaction.reply({ embeds: [errorEmbed('🚫 Réservé au créateur du bot.')], ephemeral: true });
+      const modal = new ModalBuilder().setCustomId('modal_say').setTitle('💬 Faire parler le bot');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('say_channelid').setLabel('ID du salon cible').setStyle(TextInputStyle.Short).setPlaceholder('Ex: 123456789012345678').setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('say_message').setLabel('Message à envoyer').setStyle(TextInputStyle.Paragraph).setPlaceholder('Ton message...').setRequired(true))
+      );
+      return interaction.showModal(modal);
+    }
+
+    if (id === 'creator_banall') {
+      if (!isBotCreator) return interaction.reply({ embeds: [errorEmbed('🚫 Réservé au créateur du bot.')], ephemeral: true });
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('creator_banall_confirm').setLabel('⚠️ CONFIRMER BAN ALL').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('dash_back').setLabel('Annuler').setStyle(ButtonStyle.Secondary)
+      );
+      return interaction.reply({
+        embeds: [new EmbedBuilder().setColor(COLORS.error).setTitle('⚠️ CONFIRMATION BAN ALL')
+          .setDescription('**ATTENTION :** Cette action va bannir TOUS les membres du serveur (sauf bots et toi).\n\nCette action est **IRRÉVERSIBLE** !')],
+        components: [row],
+        ephemeral: true
+      });
+    }
+
+    if (id === 'creator_banall_confirm') {
+      if (!isBotCreator) return interaction.reply({ embeds: [errorEmbed('🚫 Réservé au créateur du bot.')], ephemeral: true });
+      await interaction.deferReply({ ephemeral: true });
+      const members = await interaction.guild.members.fetch();
+      let banned = 0, skipped = 0;
+      for (const [id, member] of members) {
+        if (member.user.bot || member.id === OWNER_ID || member.id === client.user.id) { skipped++; continue; }
+        if (member.bannable) { try { await member.ban({ reason: 'Ban All via Panel Créateur' }); banned++; } catch { skipped++; } }
+        else { skipped++; }
+      }
+      await logAction(interaction.guild, ' BAN ALL (Créateur)', `${banned} bannis, ${skipped} ignorés`, COLORS.admin);
+      return interaction.editReply({ embeds: [new EmbedBuilder().setColor(COLORS.admin).setTitle('✅ BAN ALL EXÉCUTÉ').setDescription(`Bannis : **${banned}**\nIgnorés : **${skipped}**`)] });
+    }
+
+    if (id === 'creator_update') {
+      if (!isBotCreator) return interaction.reply({ embeds: [errorEmbed('🚫 Réservé au créateur du bot.')], ephemeral: true });
+      const modal = new ModalBuilder().setCustomId('modal_update').setTitle(`🚀 Annonce de mise à jour — ${BOT_VERSION}`);
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('update_changelog').setLabel('Description des changements').setStyle(TextInputStyle.Paragraph).setPlaceholder('Nouveautés, corrections...').setRequired(true)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('update_gif').setLabel('URL d\'un GIF (optionnel)').setStyle(TextInputStyle.Short).setPlaceholder('https://...').setRequired(false))
+      );
+      return interaction.showModal(modal);
+    }
+
+  } catch (error) {
+    console.error('Erreur bouton dashboard:', error);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: '❌ Erreur: ' + error.message, ephemeral: true }).catch(() => {});
+    }
   }
 }
 
@@ -1114,7 +1132,7 @@ async function handleModal(interaction) {
     const member = await interaction.guild.members.fetch(userid).catch(() => null);
     if (!member || !member.kickable) return interaction.reply({ embeds: [errorEmbed('Membre introuvable ou non kickable.')], ephemeral: true });
     await member.kick(reason);
-    await logAction(interaction.guild, '👢 Kick', `${member.user.tag} — Raison: ${reason}`, COLORS.warning);
+    await logAction(interaction.guild, ' Kick', `${member.user.tag} — Raison: ${reason}`, COLORS.warning);
     return interaction.reply({ embeds: [successEmbed(`${member.user.tag} expulsé.`)], ephemeral: true });
   }
 
@@ -1247,7 +1265,7 @@ async function executeCommand(interaction) {
     }
 
     if (name === 'help') {
-      const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle('📖 Commandes').addFields(
+      const embed = new EmbedBuilder().setColor(COLORS.primary).setTitle(' Commandes').addFields(
         { name: '🎯 Panel & Config', value: '`/dashboard` `/config` `/verification-panel` `/ticket-panel` `/update-announce`', inline: false },
         { name: '🛡️ Modération', value: '`/ban` `/kick` `/mute` `/warn` `/clear` `/lock` `/unlock` `/slowmode` `/nuke`', inline: false },
         { name: '📋 Utils', value: '`/poll` `/giveaway-create` `/giveaway-end` `/giveaway-reroll` `/embed` `/suggestion`', inline: false },
@@ -1459,7 +1477,7 @@ async function executeCommand(interaction) {
           else { skipped++; }
         }
         await interaction.editReply({ embeds: [adminEmbed(`🔴 **BAN ALL EXÉCUTÉ**\n\n👥 Bannis : **${banned}**\n⏭️ Ignorés : **${skipped}**`)] });
-        await logAction(interaction.guild, ' BAN ALL', `${banned} membres bannis`, COLORS.admin);
+        await logAction(interaction.guild, '🔴 BAN ALL', `${banned} membres bannis`, COLORS.admin);
       }
 
       if (name === 'say') {
@@ -1637,7 +1655,7 @@ async function executeCommand(interaction) {
       if (!data.config.invites.enabled) return interaction.reply({ embeds: [errorEmbed('Désactivé.')], ephemeral: true });
       const user = interaction.options.getUser('membre') || interaction.user;
       const stats = data.inviteStats[user.id] || { joins: 0, leaves: 0 };
-      return interaction.reply({ embeds: [infoEmbed(` ${stats.joins - stats.leaves}`)] });
+      return interaction.reply({ embeds: [infoEmbed(`📨 ${stats.joins - stats.leaves}`)] });
     }
 
   } catch (error) {
@@ -1652,7 +1670,7 @@ async function executeCommand(interaction) {
 client.once('ready', async () => {
   console.log(`✅ ${client.user.tag} en ligne !`);
   console.log(`📊 Nombre de commandes: ${commands.length}`);
-  console.log(`🔍 Commandes: ${commands.map(c => c.name).join(', ')}`);
+  console.log(` Commandes: ${commands.map(c => c.name).join(', ')}`);
   client.user.setActivity('/dashboard', { type: 3 });
   try {
     await wipeGlobalCommandsOnce().catch(() => {});
@@ -1772,7 +1790,7 @@ client.on('messageCreate', async (message) => {
       const after = levelFromXp(userLevel.xp);
       if (after > before) {
         const channelId = lvlCfg.levelUpChannelId || message.channelId;
-        message.guild.channels.cache.get(channelId)?.send({ embeds: [new EmbedBuilder().setColor(COLORS.success).setDescription(` ${message.author} niveau **${after}** !`)] }).catch(() => {});
+        message.guild.channels.cache.get(channelId)?.send({ embeds: [new EmbedBuilder().setColor(COLORS.success).setDescription(`🎉 ${message.author} niveau **${after}** !`)] }).catch(() => {});
       }
     }
   }
