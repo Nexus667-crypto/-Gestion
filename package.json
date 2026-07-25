@@ -1,17 +1,20 @@
 {
-  "name": "core-bot",
+  "name": "helpy",
   "version": "1.0.0",
-  "description": "Bot Discord tout-en-un en un seul fichier",
+  "description": "Bot Discord professionnel avec dashboard intégré",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "discord.js": "^14.16.3",
-    "dotenv": "^16.4.5"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "mongoose": "^8.7.0",
+    "dotenv": "^16.4.5",
+    "chalk": "^4.1.2"
   }
 }
