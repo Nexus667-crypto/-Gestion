@@ -1,15 +1,12 @@
 {
   "name": "helpy",
   "version": "1.0.0",
-  "description": "Bot Discord professionnel avec dashboard intégré",
   "main": "index.js",
-  "type": "commonjs",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js"
+    "start": "node index.js"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.x"
   },
   "dependencies": {
     "discord.js": "^14.16.3",
