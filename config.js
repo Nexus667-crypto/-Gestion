@@ -1,5 +1,12 @@
 require('dotenv').config();
 
+// Debug : afficher les variables chargées
+console.log('🔍 Variables d\'environnement chargées :');
+console.log('  TOKEN:', process.env.TOKEN ? '✅ Défini' : '❌ MANQUANT');
+console.log('  MONGO_URI:', process.env.MONGO_URI ? '✅ Défini' : '❌ MANQUANT');
+console.log('  CLIENT_ID:', process.env.CLIENT_ID ? '✅ Défini' : '❌ MANQUANT');
+console.log('  CREATOR_ID:', process.env.CREATOR_ID ? '✅ Défini' : '❌ MANQUANT');
+
 module.exports = {
   token: process.env.TOKEN,
   mongoUri: process.env.MONGO_URI,
