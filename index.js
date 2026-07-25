@@ -1,48 +1,41 @@
-require('dotenv').config();
+// ═══════════════════════════════════════════
+// CONNEXION
+// ═══════════════════════════════════════════
 
-// Debug : afficher les variables chargées
-console.log('🔍 Variables d\'environnement chargées :');
-console.log('  TOKEN:', process.env.TOKEN ? '✅ Défini' : '❌ MANQUANT');
-console.log('  MONGO_URI:', process.env.MONGO_URI ? '✅ Défini' : '❌ MANQUANT');
-console.log('  CLIENT_ID:', process.env.CLIENT_ID ? '✅ Défini' : '❌ MANQUANT');
-console.log('  CREATOR_ID:', process.env.CREATOR_ID ? '✅ Défini' : '❌ MANQUANT');
+(async () => {
+  // Vérifier les variables critiques
+  if (!config.mongoUri) {
+    logger.error('❌ MONGO_URI est manquant ! Vérifie les variables d\'environnement sur Railway.');
+    process.exit(1);
+  }
 
-module.exports = {
-  token: process.env.TOKEN,
-  mongoUri: process.env.MONGO_URI,
-  clientId: process.env.CLIENT_ID,
-  creatorId: process.env.CREATOR_ID,
+  if (!config.token) {
+    logger.error('❌ TOKEN est manquant ! Vérifie les variables d\'environnement sur Railway.');
+    process.exit(1);
+  }
 
-  levels: {
-    MEMBER: 1,
-    STAFF_TEST: 2,
-    STAFF: 3,
-    OWNER: 4,
-    CREATOR: 5,
-  },
+  try {
+    logger.info('🔄 Connexion à MongoDB...');
+    await mongoose.connect(config.mongoUri);
+    logger.success('✅ Connecté à MongoDB');
+  } catch (err) {
+    logger.error('❌ Erreur MongoDB:', err.message);
+    if (err.message.includes('bad auth')) {
+      logger.error('💡 Vérifie que ton URL MongoDB est correcte et que l\'IP Railway est autorisée dans MongoDB Atlas.');
+    }
+    process.exit(1);
+  }
 
-  levelNames: {
-    1: 'Membre',
-    2: 'Staff Test',
-    3: 'Staff',
-    4: 'Owner',
-    5: 'Créateur',
-  },
+  try {
+    logger.info('🔄 Connexion à Discord...');
+    await client.login(config.token);
+  } catch (err) {
+    logger.error('❌ Erreur de connexion Discord:', err.message);
+    if (err.message.includes('token')) {
+      logger.error('💡 Vérifie que ton TOKEN est correct.');
+    }
+  }
+})();
 
-  colors: {
-    primary: 0x5865F2,
-    success: 0x57F287,
-    warning: 0xFEE75C,
-    error: 0xED4245,
-  },
-
-  emojis: {
-    home: '🏠',
-    profile: '👤',
-    moderation: '🔨',
-    staff: '👑',
-    settings: '⚙️',
-    logs: '📜',
-    creator: '🤖',
-  },
-};
+process.on('unhandledRejection', (err) => logger.error('Unhandled Rejection:', err));
+process.on('uncaughtException', (err) => logger.error('Uncaught Exception:', err));
